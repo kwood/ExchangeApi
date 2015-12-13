@@ -7,7 +7,7 @@
     <ProjectGuid>{5ED2E081-A210-4D43-9B7E-19E6D9114973}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Example</RootNamespace>
+    <RootNamespace>OkCoinApi.Example</RootNamespace>
     <AssemblyName>Example</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

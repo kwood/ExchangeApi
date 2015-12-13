@@ -32,16 +32,6 @@ namespace OkCoinApi
         Sell = -1,
     }
 
-    public class Printable<T>
-    {
-        static readonly Stateprinter _printer = new Stateprinter();
-
-        public override string ToString()
-        {
-            return _printer.PrintObject(this);
-        }
-    }
-
     public class Amount : Printable<Amount>
     {
         public decimal Quantity { get; set; }
