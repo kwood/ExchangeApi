@@ -30,6 +30,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+      <HintPath>..\packages\NLog.4.2.2\lib\net45\NLog.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="StatePrinter, Version=2.1.0.0, Culture=neutral, PublicKeyToken=693eec472ad792e3, processorArchitecture=MSIL">
       <HintPath>..\packages\StatePrinter.2.1.220\lib\net35\StatePrinter.dll</HintPath>
       <Private>True</Private>
@@ -45,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Connection.cs" />
+    <Compile Include="DurableConnection.cs" />
     <Compile Include="Printable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
