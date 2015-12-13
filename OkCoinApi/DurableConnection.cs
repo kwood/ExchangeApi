@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using Conditions;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,9 +24,11 @@ namespace OkCoinApi
         // Requires: value and monitor aren't null; monitor is locked.
         public Locked(T value, object monitor)
         {
-            if (value == null) throw new ArgumentNullException("value");
-            if (monitor == null) throw new ArgumentNullException("monitor");
-            if (!System.Threading.Monitor.IsEntered(monitor)) throw new ArgumentException("monitor");
+            Condition.Requires(value, "value")
+                .IsNotNull();
+            Condition.Requires(monitor, "monitor")
+                .IsNotNull()
+                .Evaluate(System.Threading.Monitor.IsEntered(monitor));
             _value = value;
             _monitor = monitor;
         }
@@ -74,7 +77,7 @@ namespace OkCoinApi
 
         public DurableConnection(IConnector<T> connector)
         {
-            if (connector == null) throw new ArgumentNullException();
+            Condition.Requires(connector, "connector").IsNotNull();
             _connector = connector;
         }
 
