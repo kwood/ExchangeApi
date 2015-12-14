@@ -1,29 +1,30 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OkCoinApi.Example
 {
     class Program
     {
+        private static readonly NLog.Logger _log = LogManager.GetCurrentClassLogger();
+
         static void Main(string[] args)
         {
-            var depth = new ProductDepth()
+            try
             {
-                Product = new Future()
-                {
-                    CoinType = CoinType.Btc,
-                    FutureType = FutureType.NextWeek,
-                },
-                Orders = new List<Amount>()
-                {
-                    new Amount() { Price = 1.23m, Quantity = 42.5m, Side = Side.Sell },
-                    new Amount() { Price = 1.23m, Quantity = 42.5m, Side = Side.Sell },
-                },
-            };
-            Console.WriteLine(depth);
+                var socket = new ClientWebSocket();
+                socket.ConnectAsync(new Uri("wss://real.okcoin.com:10440/websocket/okcoinapi"), CancellationToken.None).Wait();
+                socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None).Wait();
+            }
+            catch (Exception e)
+            {
+                _log.Fatal(e, "Unhandled exception");
+            }
         }
     }
 }
