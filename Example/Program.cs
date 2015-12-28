@@ -9,17 +9,40 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi.Example
 {
+    class State
+    {
+        public Connector Connector;
+        public DurableConnection<ActiveSocket> Connection;
+    }
+
     class Program
     {
-        private static readonly NLog.Logger _log = LogManager.GetCurrentClassLogger();
+        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
+        static ArraySegment<byte> Encode(string s)
+        {
+            return new ArraySegment<byte>(Encoding.UTF8.GetBytes(s));
+        }
+
+        static void Initialize(State state, ActiveSocket socket)
+        {
+            socket.OnMessage += (ArraySegment<byte> bytes) =>
+            {
+                if (bytes.Array == null) state.Connection.Reconnect();
+            };
+            socket.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
+            socket.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
+        }
 
         static void Main(string[] args)
         {
             try
             {
-                var socket = new ClientWebSocket();
-                socket.ConnectAsync(new Uri("wss://real.okcoin.com:10440/websocket/okcoinapi"), CancellationToken.None).Wait();
-                socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None).Wait();
+                var state = new State();
+                state.Connector = new Connector("wss://real.okcoin.com:10440/websocket/okcoinapi", sock => Initialize(state, sock));
+                state.Connection = new DurableConnection<ActiveSocket>(state.Connector);
+                state.Connection.Connect();
+                while (true) Thread.Sleep(1000);
             }
             catch (Exception e)
             {
