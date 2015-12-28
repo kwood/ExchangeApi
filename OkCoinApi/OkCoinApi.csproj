@@ -52,7 +52,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ActiveSocket.cs" />
     <Compile Include="Connection.cs" />
+    <Compile Include="Connector.cs" />
     <Compile Include="DurableConnection.cs" />
     <Compile Include="Printable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
