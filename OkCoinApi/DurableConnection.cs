@@ -8,15 +8,22 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi
 {
-    interface IConnector<T> where T : IDisposable
+    public interface IConnector<T> where T : IDisposable
     {
         // May block for a few seconds but not indefinitely.
         // Must throw or return null if unable to establish a connection.
         // Doesn't need to be thread safe.
+        //
+        // T.Dispose() may block for a few seconds but not indefinitely.
+        // It'll be called exactly once and not concurrently with any other method.
+        //
+        // DurableConnection<T> guarantees that at most one object of type T is
+        // live at any given time. It calls T.Dispose() and waits for its completion
+        // before calling NewConnection() to create a new instance.
         T NewConnection();
     }
 
-    class Locked<T> : IDisposable where T : class
+    public class Locked<T> : IDisposable where T : class
     {
         readonly T _value;
         readonly object _monitor;
@@ -42,7 +49,7 @@ namespace OkCoinApi
         }
     }
 
-    class DurableConnection<T> : IDisposable where T : class, IDisposable
+    public class DurableConnection<T> : IDisposable where T : class, IDisposable
     {
         enum State
         {
@@ -110,7 +117,9 @@ namespace OkCoinApi
             }
         }
 
-        // Doesn't block.
+        // Blocks if another thread is currently operating on the connection that was obtained
+        // via TryLock(). If no one is holding an instance of Locked<T>, then this method
+        // doesn't block.
         //
         // Usage:
         //
@@ -126,20 +135,23 @@ namespace OkCoinApi
         // It's OK to call methods of DurableConnection while holding the lock.
         public Locked<T> TryLock()
         {
+            // We are grabbing two locks here: first _connectionMonitor, then _stateMonitor.
+            // The order is important because the caller will retain the lock on
+            // _connectionMonitor and may call methods that grab _stateMonitor.
+            System.Threading.Monitor.Enter(_connectionMonitor);
             lock (_stateMonitor)
             {
-                if (_state != State.Connected) return null;
-                // We are grabbing two locks here: first _stateMonitor, then _connectionMonitor.
-                // The former is released immediately; the latter will be released by the caller.
-                // Note that grabbing either of the locks is a non-blocking operation.
-                System.Threading.Monitor.Enter(_connectionMonitor);
-                return new Locked<T>(_connection, _connectionMonitor);
+                if (_state == State.Connected) return new Locked<T>(_connection, _connectionMonitor);
+                // Not connected.
+                System.Threading.Monitor.Exit(_connectionMonitor);
+                return null;
             }
         }
 
         // Doesn't block.
         public void Connect()
         {
+            _log.Info("Connect requested");
             lock (_stateMonitor)
             {
                 if (Connected) return;
@@ -151,6 +163,7 @@ namespace OkCoinApi
         // Doesn't block.
         public void Disconnect()
         {
+            _log.Info("Disconnect requested");
             lock (_stateMonitor)
             {
                 if (!Connected) return;
@@ -162,6 +175,7 @@ namespace OkCoinApi
         // Doesn't block.
         public void Reconnect()
         {
+            _log.Info("Reconnect requested");
             lock (_stateMonitor)
             {
                 if (!Transitioning) ManageConnectionAfter(TimeSpan.Zero);
@@ -221,6 +235,8 @@ namespace OkCoinApi
                         case State.Reconnecting:
                             shouldDisconnect = true;
                             shouldConnect = true;
+                            // If Reconnect() gets called after we release _stateMonitor and before
+                            // we reacquire it, we'll destroy the newly opened connection and create a new one.
                             _state = State.Connecting;
                             break;
                         default:
@@ -234,6 +250,8 @@ namespace OkCoinApi
                 //   c) There is at most one instance of ManageConnection() running at a time.
                 //   d) TryLock() attempts to grab _connectionMonitor only if Transitioning is false.
                 lock (_connectionMonitor) { }
+                _log.Info("Changing connection state. ShouldDisconnect: {0}, ShouldConnect: {1}.",
+                          shouldDisconnect, shouldConnect);
                 if (shouldDisconnect && _connection != null)
                 {
                     try { _connection.Dispose(); }
