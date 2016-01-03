@@ -48,18 +48,21 @@ namespace ExchangeApi
     public interface Product
     {
         ProductType ProductType { get; }
+        Currency Currency { get; set; }
         CoinType CoinType { get; set; }
     }
 
     public class Spot : Printable<Spot>, Product
     {
         public ProductType ProductType { get { return ProductType.Spot; } }
+        public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
     }
 
     public class Future : Printable<Future>, Product
     {
         public ProductType ProductType { get { return ProductType.Future; } }
+        public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
         public FutureType FutureType { get; set; }
     }
@@ -112,6 +115,7 @@ namespace ExchangeApi
     public class NewSpotRequest : Printable<NewSpotRequest>
     {
         public CoinType CoinType { get; set; }
+        public Currency Currency { get; set; }
         public OrderType OrderType { get; set; }
         public Amount Amount { get; set; }
     }
@@ -131,6 +135,7 @@ namespace ExchangeApi
     public class NewFutureRequest : Printable<NewFutureRequest>
     {
         public CoinType CoinType { get; set; }
+        public Currency Currency { get; set; }
         public OrderType OrderType { get; set; }
         public FutureType FutureType { get; set; }
         public Amount Amount { get; set; }
@@ -166,14 +171,9 @@ namespace ExchangeApi
 
     public class Connection : IDisposable
     {
-        readonly Currency _exchangeCurrency;
-
-        public Connection(Currency exchangeCurrency)
+        public Connection()
         {
-            _exchangeCurrency = exchangeCurrency;
         }
-
-        public Currency ExchangeCurrency { get { return _exchangeCurrency; } }
 
         public event Action OnConnected;
         // No events will fire after OnDisconnected fires until AsyncReconnect is called.
