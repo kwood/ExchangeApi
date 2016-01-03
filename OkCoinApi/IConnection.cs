@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace OkCoinApi
 {
     // A thread-safe bidirectional stream of serialized messages.
-    interface IMessageStream : IDisposable
+    public interface IConnection<In, Out> : IDisposable
     {
         // Initially false. Becomes true as the result of the call to Connect() (even if
         // it throws). Calling Dispose() makes it false.
@@ -22,13 +22,13 @@ namespace OkCoinApi
         // event.
         //
         // Won't be fired until Connect() is called.
-        event Action<ArraySegment<byte>> OnMessage;
+        event Action<In> OnMessage;
 
         // Must be called at most once. Blocks. Throws on error, in which case you
         // must call Dispose().
-        void Connect(string endpoint);
+        void Connect();
 
         // Blocks. Throws on error.
-        void Send(ArraySegment<byte> message);
+        void Send(Out message);
     }
 }

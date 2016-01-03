@@ -52,7 +52,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MessageStream.cs" />
+    <Compile Include="IConnection.cs" />
+    <Compile Include="IConnector.cs" />
     <Compile Include="WebSocket.cs" />
     <Compile Include="Connection.cs" />
     <Compile Include="Connector.cs" />

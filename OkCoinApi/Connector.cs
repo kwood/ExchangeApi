@@ -7,35 +7,19 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi
 {
-    public class Connector : IConnector<WebSocket>
+    public class Connector : IConnector<ArraySegment<byte>?, ArraySegment<byte>>
     {
         readonly string _endpoint;
-        readonly Action<WebSocket> _initializer;
 
-        public Connector(string endpoint, Action<WebSocket> initializer)
+        public Connector(string endpoint)
         {
             Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
             _endpoint = endpoint;
-            _initializer = initializer;
         }
 
-        public WebSocket NewConnection()
+        public IConnection<ArraySegment<byte>?, ArraySegment<byte>> NewConnection()
         {
-            var res = new WebSocket();
-            res.Connect(_endpoint);
-            if (_initializer != null)
-            {
-                try
-                {
-                    _initializer.Invoke(res);
-                }
-                catch
-                {
-                    res.Dispose();
-                    throw;
-                }
-            }
-            return res;
+            return new WebSocket(_endpoint);
         }
     }
 }

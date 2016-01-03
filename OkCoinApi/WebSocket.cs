@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi
 {
-    public class WebSocket : IMessageStream
+    public class WebSocket : IConnection<ArraySegment<byte>?, ArraySegment<byte>>
     {
         enum State
         {
@@ -26,12 +26,23 @@ namespace OkCoinApi
 
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
+        readonly string _endpoint;
+
         ClientWebSocket _socket = null;
         State _state = State.Created;
         readonly object _monitor = new object();
 
-        public WebSocket()
+        static Random _rng = new Random();
+
+        static void TryLuck()
         {
+            // if (_rng.NextDouble() < 0.2) throw new Exception("BAD LUCK");
+        }
+
+        public WebSocket(string endpoint)
+        {
+            Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
+            _endpoint = endpoint;
         }
 
         // From IMessageStream.
@@ -44,24 +55,24 @@ namespace OkCoinApi
         }
 
         // From IMessageStream.
-        public event Action<ArraySegment<byte>> OnMessage;
+        public event Action<ArraySegment<byte>?> OnMessage;
 
         // From IMessageStream.
-        public void Connect(string endpoint)
+        public void Connect()
         {
-            Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
             Task t;
             lock (_monitor)
             {
                 if (_state != State.Created) throw new Exception("ActiveSocket.Connect() is disallowed");
-                _log.Info("Connecting to {0}", endpoint);
+                _log.Info("Connecting to {0}", _endpoint);
                 _socket = new ClientWebSocket();
                 _state = State.Connected;
                 _socket.Options.SetBuffer(receiveBufferSize: 64 << 10, sendBufferSize: 1 << 10);
-                t = _socket.ConnectAsync(new Uri(endpoint), TimeoutSec(10));
+                t = _socket.ConnectAsync(new Uri(_endpoint), TimeoutSec(10));
             }
             t.Wait();
-            _log.Info("Connected to {0}", endpoint);
+            TryLuck();
+            _log.Info("Connected to {0}", _endpoint);
             Task.Run(() =>
                 {
                     try { ReadLoop(); }
@@ -75,11 +86,12 @@ namespace OkCoinApi
             Task t;
             lock (_monitor)
             {
-                if (_state != State.Connected) throw new Exception("ActiveSocket.Connect() is disallowed");
+                if (_state != State.Connected) throw new Exception("ActiveSocket.Send() is disallowed");
                 _log.Info("OUT: {0}", DecodeForLogging(message));
                 t = _socket.SendAsync(message, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: TimeoutSec(10));
             }
             t.Wait();
+            TryLuck();
         }
 
         // From IMessageStream.
@@ -105,7 +117,10 @@ namespace OkCoinApi
                     case State.Connected:
                         _state = State.Disposing;
                         _log.Info("Disconnecting...");
-                        try { t = _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", TimeoutSec(10)); }
+                        // The documentation says that CloseOutputAsync() and CloseAsync() are equivalent when
+                        // used by the client. This is not true. CloseAsync() will occasionally hang despite the
+                        // 10 second timeout.
+                        try { t = _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TimeoutSec(10)); }
                         catch (Exception e) { _log.Warn(e, "Unable to cleanly close ClientWebSocket"); }
                         break;
                 }
@@ -150,13 +165,13 @@ namespace OkCoinApi
                 WebSocketReceiveResult res = null;
                 if (t != null)
                 {
-                    try { res = await t; }
+                    try { TryLuck(); res = await t; }
                     catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
                 }
 
                 if (res == null)
                 {
-                    if (Connected) Notify(new ArraySegment<byte>());
+                    if (Connected) Notify(null);
                     break;
                 }
 
@@ -177,10 +192,10 @@ namespace OkCoinApi
             _log.Info("Stopped reading data from ClientWebSocket");
         }
 
-        void Notify(ArraySegment<byte> message)
+        void Notify(ArraySegment<byte>? message)
         {
-            if (message.Array == null) _log.Info("IN: <ERROR>");
-            else _log.Info("IN: {0}", DecodeForLogging(message));
+            if (message == null) _log.Info("IN: <ERROR>");
+            else _log.Info("IN: {0}", DecodeForLogging(message.Value));
 
             try { OnMessage?.Invoke(message); }
             catch (Exception e) { _log.Warn(e, "Error while handling a message from ClientWebSocket"); }

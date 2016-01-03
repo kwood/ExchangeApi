@@ -8,40 +8,44 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi
 {
-    public interface IConnector<T> where T : IDisposable
+    public interface IWriter<Out> : IDisposable
     {
-        // May block for a few seconds but not indefinitely.
-        // Must throw or return null if unable to establish a connection.
-        // Doesn't need to be thread safe.
-        //
-        // T.Dispose() may block for a few seconds but not indefinitely.
-        // It'll be called exactly once and not concurrently with any other method.
-        //
-        // DurableConnection<T> guarantees that at most one object of type T is
-        // live at any given time. It calls T.Dispose() and waits for its completion
-        // before calling NewConnection() to create a new instance.
-        T NewConnection();
+        // Blocks. Throws on error.
+        void Send(Out message);
     }
 
-    public class Locked<T> : IDisposable where T : class
+    class ExclusiveWriter<In, Out> : IWriter<Out>
     {
-        readonly T _value;
+        readonly DurableConnection<In, Out> _durable;
+        readonly IConnection<In, Out> _connection;
         readonly object _monitor;
 
-        // Requires: value and monitor aren't null; monitor is locked.
-        public Locked(T value, object monitor)
+        public ExclusiveWriter(DurableConnection<In, Out> durable, IConnection<In, Out> connection, object monitor)
         {
-            Condition.Requires(value, "value")
+            Condition.Requires(durable, "durable")
+                .IsNotNull();
+            Condition.Requires(connection, "connection")
                 .IsNotNull();
             Condition.Requires(monitor, "monitor")
                 .IsNotNull()
                 .Evaluate(System.Threading.Monitor.IsEntered(monitor));
-            _value = value;
+            _durable = durable;
+            _connection = connection;
             _monitor = monitor;
         }
 
-        // Guarantees: Value != null.
-        public T Value { get { return _value; } }
+        public void Send(Out message)
+        {
+            try
+            {
+                _connection.Send(message);
+            }
+            catch
+            {
+                _durable.Reconnect();
+                throw;
+            }
+        }
 
         public void Dispose()
         {
@@ -49,7 +53,27 @@ namespace OkCoinApi
         }
     }
 
-    public class DurableConnection<T> : IDisposable where T : class, IDisposable
+    class SimpleWriter<In, Out> : IWriter<Out>
+    {
+        readonly IConnection<In, Out> _connection;
+
+        public SimpleWriter(IConnection<In, Out> connection)
+        {
+            Condition.Requires(connection, "connection").IsNotNull();
+            _connection = connection;
+        }
+
+        public void Send(Out message)
+        {
+            _connection.Send(message);
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    public class DurableConnection<In, Out> : IDisposable
     {
         enum State
         {
@@ -72,17 +96,33 @@ namespace OkCoinApi
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         // Not null.
-        readonly IConnector<T> _connector;
+        readonly IConnector<In, Out> _connector;
 
         // Protected by _stateMonitor, which is never held for a long time.
         State _state = State.Disconnected;
         readonly object _stateMonitor = new object();
 
         // Protected by _connectionMonitor.
-        T _connection = null;
+        IConnection<In, Out> _connection = null;
         readonly object _connectionMonitor = new object();
 
-        public DurableConnection(IConnector<T> connector)
+        // This event fires whenever a message is received.
+        //
+        // TODO: consider adding another argument: Func<bool>, which returns
+        // the Connected property of the IConnection that gave us this message.
+        // This can be useful if we ever decide to call reconnect based on the
+        // content of a received message.
+        public event Action<In> OnMessage;
+
+        // This event is fired whenever a new IConnection is created. If it throws,
+        // the connection is deemed broken and gets discarded.
+        //
+        // Some protocols may require an exchange of messages when establishing a
+        // connection. When the need arises, the argument of this action will have to
+        // become something more sophisticated than IWriter.
+        public event Action<IWriter<Out>> OnConnection;
+
+        public DurableConnection(IConnector<In, Out> connector)
         {
             Condition.Requires(connector, "connector").IsNotNull();
             _connector = connector;
@@ -118,22 +158,22 @@ namespace OkCoinApi
         }
 
         // Blocks if another thread is currently operating on the connection that was obtained
-        // via TryLock(). If no one is holding an instance of Locked<T>, then this method
+        // via TryLock(). If no one is holding an instance of IWriter<Out>, then this method
         // doesn't block.
         //
         // Usage:
         //
-        //   DurableConnection<MyConnection> dc = ...;
-        //   using (Locked<MyConnection> c = dc.TryLock())
+        //   DurableConnection<In, Out> dc = ...;
+        //   using (IWriter<Out> w = dc.TryLock())
         //   {
-        //       if (c != null)
+        //       if (w != null)
         //       {
         //           // We are connected and are holding an exclusive lock on the connection.
         //       }
         //   }
         //
         // It's OK to call methods of DurableConnection while holding the lock.
-        public Locked<T> TryLock()
+        public IWriter<Out> TryLock()
         {
             // We are grabbing two locks here: first _connectionMonitor, then _stateMonitor.
             // The order is important because the caller will retain the lock on
@@ -141,7 +181,10 @@ namespace OkCoinApi
             System.Threading.Monitor.Enter(_connectionMonitor);
             lock (_stateMonitor)
             {
-                if (_state == State.Connected) return new Locked<T>(_connection, _connectionMonitor);
+                if (_state == State.Connected)
+                {
+                    return new ExclusiveWriter<In, Out>(this, _connection, _connectionMonitor);
+                }
                 // Not connected.
                 System.Threading.Monitor.Exit(_connectionMonitor);
                 return null;
@@ -212,6 +255,7 @@ namespace OkCoinApi
         // Doesn't block.
         void ManageConnectionAfter(TimeSpan delay)
         {
+            _log.Info("Scheduling connection management in {0}", delay);
             Task.Delay(delay).ContinueWith(t => ManageConnection());
         }
 
@@ -260,25 +304,57 @@ namespace OkCoinApi
                 }
                 if (shouldConnect && _connection == null)
                 {
-                    // Note: if NewConnection() returns null, we treat it as connection error (just like exception).
-                    try { _connection = _connector.NewConnection(); }
-                    catch (Exception e) { _log.Warn(e, "Unable to connect. Will retry."); }
+                    // Doesn't throw. Null on error.
+                    _connection = NewConnection();
                 }
                 lock (_stateMonitor)
                 {
                     if (!Transitioning) throw new InvalidConnectionStateException(_state);
                     bool connected = _connection != null;
                     if (_state == State.Connecting && connected)
+                    {
+                        _log.Info("Changing connection state to Connected");
                         _state = State.Connected;
+                    }
                     else if (_state == State.Disconnecting && !connected)
+                    {
+                        _log.Info("Changing connection state to Disconnected");
                         _state = State.Disconnected;
+                    }
                     else
+                    {
                         ManageConnectionAfter(TimeSpan.FromSeconds(shouldConnect && !connected ? 1 : 0));
+                    }
                 }
             }
             catch (Exception e)
             {
                 _log.Fatal(e, "Unexpected exception in DurableConnection.ManageConnection");
+            }
+        }
+
+        // Doesn't throw. Null on error.
+        IConnection<In, Out> NewConnection()
+        {
+            IConnection<In, Out> res = null;
+            try
+            {
+                res = _connector.NewConnection();
+                Condition.Requires(res).IsNotNull();
+                res.OnMessage += (In message) =>
+                {
+                    if (message == null) Reconnect();
+                    else OnMessage?.Invoke(message);
+                };
+                res.Connect();
+                OnConnection?.Invoke(new SimpleWriter<In, Out>(res));
+                return res;
+            }
+            catch (Exception e)
+            {
+                _log.Warn(e, "Unable to connect. Will retry.");
+                if (res != null) res.Dispose();
+                return null;
             }
         }
     }

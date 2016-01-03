@@ -9,12 +9,6 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi.Example
 {
-    class State
-    {
-        public Connector Connector;
-        public DurableConnection<WebSocket> Connection;
-    }
-
     class Program
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
@@ -24,24 +18,22 @@ namespace OkCoinApi.Example
             return new ArraySegment<byte>(Encoding.UTF8.GetBytes(s));
         }
 
-        static void Initialize(State state, WebSocket socket)
-        {
-            socket.OnMessage += (ArraySegment<byte> bytes) =>
-            {
-                if (bytes.Array == null) state.Connection.Reconnect();
-            };
-            socket.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
-            socket.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
-        }
-
         static void Main(string[] args)
         {
             try
             {
-                var state = new State();
-                state.Connector = new Connector("wss://real.okcoin.com:10440/websocket/okcoinapi", sock => Initialize(state, sock));
-                state.Connection = new DurableConnection<WebSocket>(state.Connector);
-                state.Connection.Connect();
+                var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(
+                    new Connector("wss://real.okcoin.com:10440/websocket/okcoinapi"));
+                connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
+                {
+                    writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
+                    writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
+                };
+                connection.OnMessage += (ArraySegment<byte>? bytes) =>
+                {
+                    _log.Info("OnMessage: {0} byte(s)", bytes.Value.Count);
+                };
+                connection.Connect();
                 while (true) Thread.Sleep(1000);
             }
             catch (Exception e)
