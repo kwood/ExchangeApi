@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace OkCoinApi
+namespace ExchangeApi
 {
     public class WebSocket : IConnection<ArraySegment<byte>?, ArraySegment<byte>>
     {
@@ -33,11 +33,6 @@ namespace OkCoinApi
         readonly object _monitor = new object();
 
         static Random _rng = new Random();
-
-        static void TryLuck()
-        {
-            // if (_rng.NextDouble() < 0.2) throw new Exception("BAD LUCK");
-        }
 
         public WebSocket(string endpoint)
         {
@@ -71,7 +66,6 @@ namespace OkCoinApi
                 t = _socket.ConnectAsync(new Uri(_endpoint), TimeoutSec(10));
             }
             t.Wait();
-            TryLuck();
             _log.Info("Connected to {0}", _endpoint);
             Task.Run(() =>
                 {
@@ -91,7 +85,6 @@ namespace OkCoinApi
                 t = _socket.SendAsync(message, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: TimeoutSec(10));
             }
             t.Wait();
-            TryLuck();
         }
 
         // From IMessageStream.
@@ -165,7 +158,7 @@ namespace OkCoinApi
                 WebSocketReceiveResult res = null;
                 if (t != null)
                 {
-                    try { TryLuck(); res = await t; }
+                    try { res = await t; }
                     catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
                 }
 

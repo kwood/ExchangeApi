@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OkCoinApi
+namespace ExchangeApi
 {
     // A thread-safe bidirectional stream of serialized messages.
     public interface IConnection<In, Out> : IDisposable

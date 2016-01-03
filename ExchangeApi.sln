@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OkCoinApi", "OkCoinApi\OkCoinApi.csproj", "{D58C4584-48BC-4D51-A3A5-9EE5D4C64FF0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExchangeApi", "ExchangeApi\ExchangeApi.csproj", "{D58C4584-48BC-4D51-A3A5-9EE5D4C64FF0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Example", "Example\Example.csproj", "{5ED2E081-A210-4D43-9B7E-19E6D9114973}"
 	ProjectSection(ProjectDependencies) = postProject

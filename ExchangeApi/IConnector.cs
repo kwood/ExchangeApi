@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace OkCoinApi
+namespace ExchangeApi
 {
     public interface IConnector<In, Out>
     {

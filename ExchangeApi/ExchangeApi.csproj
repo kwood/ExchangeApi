@@ -7,8 +7,8 @@
     <ProjectGuid>{D58C4584-48BC-4D51-A3A5-9EE5D4C64FF0}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OkCoinApi</RootNamespace>
-    <AssemblyName>OkCoinApi</AssemblyName>
+    <RootNamespace>ExchangeApi</RootNamespace>
+    <AssemblyName>ExchangeApi</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
