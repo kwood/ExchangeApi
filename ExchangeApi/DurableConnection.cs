@@ -14,65 +14,6 @@ namespace ExchangeApi
         void Send(Out message);
     }
 
-    class ExclusiveWriter<In, Out> : IWriter<Out>
-    {
-        readonly DurableConnection<In, Out> _durable;
-        readonly IConnection<In, Out> _connection;
-        readonly object _monitor;
-
-        public ExclusiveWriter(DurableConnection<In, Out> durable, IConnection<In, Out> connection, object monitor)
-        {
-            Condition.Requires(durable, "durable")
-                .IsNotNull();
-            Condition.Requires(connection, "connection")
-                .IsNotNull();
-            Condition.Requires(monitor, "monitor")
-                .IsNotNull()
-                .Evaluate(System.Threading.Monitor.IsEntered(monitor));
-            _durable = durable;
-            _connection = connection;
-            _monitor = monitor;
-        }
-
-        public void Send(Out message)
-        {
-            try
-            {
-                _connection.Send(message);
-            }
-            catch
-            {
-                _durable.Reconnect();
-                throw;
-            }
-        }
-
-        public void Dispose()
-        {
-            System.Threading.Monitor.Exit(_monitor);
-        }
-    }
-
-    class SimpleWriter<In, Out> : IWriter<Out>
-    {
-        readonly IConnection<In, Out> _connection;
-
-        public SimpleWriter(IConnection<In, Out> connection)
-        {
-            Condition.Requires(connection, "connection").IsNotNull();
-            _connection = connection;
-        }
-
-        public void Send(Out message)
-        {
-            _connection.Send(message);
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
     public class DurableConnection<In, Out> : IDisposable
     {
         enum State
@@ -356,6 +297,65 @@ namespace ExchangeApi
                 if (res != null) res.Dispose();
                 return null;
             }
+        }
+    }
+
+    class ExclusiveWriter<In, Out> : IWriter<Out>
+    {
+        readonly DurableConnection<In, Out> _durable;
+        readonly IConnection<In, Out> _connection;
+        readonly object _monitor;
+
+        public ExclusiveWriter(DurableConnection<In, Out> durable, IConnection<In, Out> connection, object monitor)
+        {
+            Condition.Requires(durable, "durable")
+                .IsNotNull();
+            Condition.Requires(connection, "connection")
+                .IsNotNull();
+            Condition.Requires(monitor, "monitor")
+                .IsNotNull()
+                .Evaluate(System.Threading.Monitor.IsEntered(monitor));
+            _durable = durable;
+            _connection = connection;
+            _monitor = monitor;
+        }
+
+        public void Send(Out message)
+        {
+            try
+            {
+                _connection.Send(message);
+            }
+            catch
+            {
+                _durable.Reconnect();
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            System.Threading.Monitor.Exit(_monitor);
+        }
+    }
+
+    class SimpleWriter<In, Out> : IWriter<Out>
+    {
+        readonly IConnection<In, Out> _connection;
+
+        public SimpleWriter(IConnection<In, Out> connection)
+        {
+            Condition.Requires(connection, "connection").IsNotNull();
+            _connection = connection;
+        }
+
+        public void Send(Out message)
+        {
+            _connection.Send(message);
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

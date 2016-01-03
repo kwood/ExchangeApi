@@ -52,18 +52,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IConnection.cs" />
-    <Compile Include="IConnector.cs" />
-    <Compile Include="WebSocket.cs" />
-    <Compile Include="Connection.cs" />
-    <Compile Include="Connector.cs" />
+    <Compile Include="Infra\IConnection.cs" />
+    <Compile Include="Infra\IConnector.cs" />
+    <Compile Include="Infra\WebSocket.cs" />
+    <Compile Include="OkCoin\Connection.cs" />
+    <Compile Include="OkCoin\Connector.cs" />
     <Compile Include="DurableConnection.cs" />
-    <Compile Include="Printable.cs" />
+    <Compile Include="Infra\Printable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
