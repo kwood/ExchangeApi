@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ExchangeApi
+{
+    interface ICodec<In, Out>
+    {
+        ArraySegment<byte> Serialize(Out msg);
+
+        In Parse(ArraySegment<byte> msg);
+    }
+}

@@ -5,8 +5,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExchangeApi
+namespace ExchangeApi.OkCoin
 {
+    interface IMessage<Visitor>
+    {
+        void Visit(Visitor visitor);
+    }
+
     public enum Currency
     {
         Usd,

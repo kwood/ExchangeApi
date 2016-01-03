@@ -52,9 +52,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Infra\CodingConnector.cs" />
+    <Compile Include="Infra\ICodec.cs" />
     <Compile Include="Infra\IConnection.cs" />
     <Compile Include="Infra\IConnector.cs" />
-    <Compile Include="Infra\WebSocket.cs" />
+    <Compile Include="Infra\WebSocket\Connection.cs" />
+    <Compile Include="Infra\WebSocket\Connector.cs" />
     <Compile Include="OkCoin\Connection.cs" />
     <Compile Include="OkCoin\Connector.cs" />
     <Compile Include="DurableConnection.cs" />

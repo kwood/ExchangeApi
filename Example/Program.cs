@@ -22,19 +22,22 @@ namespace ExchangeApi.Example
         {
             try
             {
-                var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(
-                    new Connector("wss://real.okcoin.com:10440/websocket/okcoinapi"));
-                connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
+                using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(
+                    new WebSocket.Connector("wss://real.okcoin.com:10440/websocket/okcoinapi")))
                 {
-                    writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
-                    writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
-                };
-                connection.OnMessage += (ArraySegment<byte>? bytes) =>
-                {
-                    _log.Info("OnMessage: {0} byte(s)", bytes.Value.Count);
-                };
-                connection.Connect();
-                while (true) Thread.Sleep(1000);
+                    connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
+                    {
+                        writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
+                        writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
+                    };
+                    connection.OnMessage += (ArraySegment<byte>? bytes) =>
+                    {
+                        _log.Info("OnMessage: {0} byte(s)", bytes.Value.Count);
+                    };
+                    connection.Connect();
+                    Thread.Sleep(5000);
+                }
+                Thread.Sleep(2000);
             }
             catch (Exception e)
             {

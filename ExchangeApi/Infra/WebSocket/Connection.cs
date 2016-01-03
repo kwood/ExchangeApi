@@ -8,9 +8,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ExchangeApi
+namespace ExchangeApi.WebSocket
 {
-    public class WebSocket : IConnection<ArraySegment<byte>?, ArraySegment<byte>>
+    public class Connection : IConnection<ArraySegment<byte>?, ArraySegment<byte>>
     {
         enum State
         {
@@ -34,7 +34,7 @@ namespace ExchangeApi
 
         static Random _rng = new Random();
 
-        public WebSocket(string endpoint)
+        public Connection(string endpoint)
         {
             Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
             _endpoint = endpoint;
@@ -158,8 +158,15 @@ namespace ExchangeApi
                 WebSocketReceiveResult res = null;
                 if (t != null)
                 {
-                    try { res = await t; }
-                    catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
+                    try
+                    {
+                        res = await t;
+                    }
+                    catch (Exception e)
+                    {
+                        // Don't spam logs with errors if we are in the process of disconnecting.
+                        if (Connected) _log.Warn(e, "Unable to read from ClientWebSocket");
+                    }
                 }
 
                 if (res == null)
