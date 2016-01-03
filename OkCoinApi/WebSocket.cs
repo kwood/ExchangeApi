@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace OkCoinApi
 {
-    public class ActiveSocket : IDisposable
+    public class WebSocket : IMessageStream
     {
         enum State
         {
@@ -30,10 +30,11 @@ namespace OkCoinApi
         State _state = State.Created;
         readonly object _monitor = new object();
 
-        public ActiveSocket()
+        public WebSocket()
         {
         }
 
+        // From IMessageStream.
         public bool Connected
         {
             get
@@ -42,15 +43,10 @@ namespace OkCoinApi
             }
         }
 
-        // While the event handler is running, nothing is getting read from the
-        // socket.
-        //
-        // On read error this event is raised with null as the argument.
-        // However, the event isn't raised if the error happened after the first
-        // call to Dispose().
+        // From IMessageStream.
         public event Action<ArraySegment<byte>> OnMessage;
 
-        // Blocks. Throws on error. Must be called at most once.
+        // From IMessageStream.
         public void Connect(string endpoint)
         {
             Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
@@ -73,7 +69,7 @@ namespace OkCoinApi
                 });
         }
 
-        // Blocks. Throws on error.
+        // From IMessageStream.
         public void Send(ArraySegment<byte> message)
         {
             Task t;
@@ -86,6 +82,7 @@ namespace OkCoinApi
             t.Wait();
         }
 
+        // From IMessageStream.
         // Blocks. Doesn't throw.
         public void Dispose()
         {

@@ -12,7 +12,7 @@ namespace OkCoinApi.Example
     class State
     {
         public Connector Connector;
-        public DurableConnection<ActiveSocket> Connection;
+        public DurableConnection<WebSocket> Connection;
     }
 
     class Program
@@ -24,7 +24,7 @@ namespace OkCoinApi.Example
             return new ArraySegment<byte>(Encoding.UTF8.GetBytes(s));
         }
 
-        static void Initialize(State state, ActiveSocket socket)
+        static void Initialize(State state, WebSocket socket)
         {
             socket.OnMessage += (ArraySegment<byte> bytes) =>
             {
@@ -40,7 +40,7 @@ namespace OkCoinApi.Example
             {
                 var state = new State();
                 state.Connector = new Connector("wss://real.okcoin.com:10440/websocket/okcoinapi", sock => Initialize(state, sock));
-                state.Connection = new DurableConnection<ActiveSocket>(state.Connector);
+                state.Connection = new DurableConnection<WebSocket>(state.Connector);
                 state.Connection.Connect();
                 while (true) Thread.Sleep(1000);
             }
