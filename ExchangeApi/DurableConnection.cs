@@ -14,6 +14,8 @@ namespace ExchangeApi
         void Send(Out message);
     }
 
+    // Requires: default(In) == null.
+    // It means that In must be either a class or Nullable<T>.
     public class DurableConnection<In, Out> : IDisposable
     {
         enum State
@@ -46,6 +48,14 @@ namespace ExchangeApi
         // Protected by _connectionMonitor.
         IConnection<In, Out> _connection = null;
         readonly object _connectionMonitor = new object();
+
+        static DurableConnection()
+        {
+            if (default(In) != null)
+            {
+                throw new Exception("Invalid `In` type parameter in CodingConnector<In, Out>: " + typeof(In));
+            }
+        }
 
         // This event fires whenever a message is received.
         //
