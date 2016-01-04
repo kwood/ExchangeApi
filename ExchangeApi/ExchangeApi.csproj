@@ -65,6 +65,7 @@
     <Compile Include="Infra\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />
     <Compile Include="OkCoin\Messages.cs" />
+    <Compile Include="OkCoin\Parser.cs" />
     <Compile Include="OkCoin\Serializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

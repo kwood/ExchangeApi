@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.OkCoin
 {
-    public class Codec : ICodec<ArraySegment<byte>?, IMessageOut>
+    public class Codec : ICodec<IMessageIn, IMessageOut>
     {
-        public ArraySegment<byte>? Parse(ArraySegment<byte> msg)
+        public IMessageIn Parse(ArraySegment<byte> msg)
         {
-            return msg;
+            return Parser.Parse(msg);
         }
 
         public ArraySegment<byte> Serialize(IMessageOut msg)

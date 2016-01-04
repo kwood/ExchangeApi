@@ -16,6 +16,16 @@ namespace ExchangeApi.OkCoin
         T Visit(SubscribeRequest msg);
     }
 
+    public interface IMessageIn
+    {
+        T Visit<T>(IVisitorIn<T> v);
+    }
+
+    public interface IVisitorIn<T>
+    {
+        T Visit(ProductDepth msg);
+    }
+
     public enum Currency
     {
         Usd,
@@ -76,10 +86,15 @@ namespace ExchangeApi.OkCoin
         public FutureType FutureType { get; set; }
     }
 
-    public class ProductDepth : Printable<ProductDepth>
+    public class ProductDepth : Printable<ProductDepth>, IMessageIn
     {
         public Product Product { get; set; }
         public List<Amount> Orders { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
     public class Trade : Printable<Trade>

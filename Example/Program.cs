@@ -18,10 +18,10 @@ namespace ExchangeApi.Example
         {
             try
             {
-                var connector = new CodingConnector<ArraySegment<byte>?, IMessageOut>(
+                var connector = new CodingConnector<IMessageIn, IMessageOut>(
                     new WebSocket.Connector(Instance.OkCoinCom),
                     new Codec());
-                using (var connection = new DurableConnection<ArraySegment<byte>?, IMessageOut>(connector))
+                using (var connection = new DurableConnection<IMessageIn, IMessageOut>(connector))
                 {
                     connection.OnConnection += (IWriter<IMessageOut> writer) =>
                     {
@@ -39,9 +39,9 @@ namespace ExchangeApi.Example
                                 }
                         }
                     };
-                    connection.OnMessage += (ArraySegment<byte>? bytes) =>
+                    connection.OnMessage += (IMessageIn msg) =>
                     {
-                        _log.Info("OnMessage: {0} byte(s)", bytes.Value.Count);
+                        _log.Info("OnMessage: {0}", msg);
                     };
                     connection.Connect();
                     Thread.Sleep(5000);
