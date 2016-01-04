@@ -19,7 +19,7 @@ namespace ExchangeApi.Example
             try
             {
                 var connector = new CodingConnector<ArraySegment<byte>?, IMessageOut>(
-                    new WebSocket.Connector("wss://real.okcoin.com:10440/websocket/okcoinapi"),
+                    new WebSocket.Connector(Instance.OkCoinCom),
                     new Codec());
                 using (var connection = new DurableConnection<ArraySegment<byte>?, IMessageOut>(connector))
                 {
