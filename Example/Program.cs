@@ -14,11 +14,6 @@ namespace ExchangeApi.Example
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
-        static ArraySegment<byte> Encode(string s)
-        {
-            return new ArraySegment<byte>(Encoding.UTF8.GetBytes(s));
-        }
-
         static void Main(string[] args)
         {
             try
