@@ -1,4 +1,5 @@
-﻿using ExchangeApi.OkCoin;
+﻿using ExchangeApi;
+using ExchangeApi.OkCoin;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ExchangeApi.Example
+namespace Example
 {
     class Program
     {
@@ -21,7 +22,7 @@ namespace ExchangeApi.Example
 
         static void RawConnection()
         {
-            var connector = new WebSocket.Connector(Instance.OkCoinCom);
+            var connector = new ExchangeApi.WebSocket.Connector(Instance.OkCoinCom);
             using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
             {
                 connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
@@ -41,7 +42,7 @@ namespace ExchangeApi.Example
         static void StructuredConnection()
         {
             var connector = new CodingConnector<IMessageIn, IMessageOut>(
-                    new WebSocket.Connector(Instance.OkCoinCom),
+                    new ExchangeApi.WebSocket.Connector(Instance.OkCoinCom),
                     new Codec());
             using (var connection = new DurableConnection<IMessageIn, IMessageOut>(connector))
             {
