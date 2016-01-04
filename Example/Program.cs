@@ -9,6 +9,19 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.Example
 {
+    class Codec : ICodec<ArraySegment<byte>?, ArraySegment<byte>>
+    {
+        public ArraySegment<byte>? Parse(ArraySegment<byte> msg)
+        {
+            return msg;
+        }
+
+        public ArraySegment<byte> Serialize(ArraySegment<byte> msg)
+        {
+            return msg;
+        }
+    }
+
     class Program
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
@@ -22,8 +35,10 @@ namespace ExchangeApi.Example
         {
             try
             {
-                using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(
-                    new WebSocket.Connector("wss://real.okcoin.com:10440/websocket/okcoinapi")))
+                var connector = new CodingConnector<ArraySegment<byte>?, ArraySegment<byte>>(
+                    new WebSocket.Connector("wss://real.okcoin.com:10440/websocket/okcoinapi"),
+                    new Codec());
+                using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
                 {
                     connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
                     {

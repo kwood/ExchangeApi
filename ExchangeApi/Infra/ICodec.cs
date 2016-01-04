@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi
 {
-    interface ICodec<In, Out>
+    public interface ICodec<In, Out>
     {
         ArraySegment<byte> Serialize(Out msg);
 
