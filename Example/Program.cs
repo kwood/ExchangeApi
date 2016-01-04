@@ -26,11 +26,17 @@ namespace ExchangeApi.Example
                     connection.OnConnection += (IWriter<IMessageOut> writer) =>
                     {
                         foreach (var coin in new[] { CoinType.Btc, CoinType.Ltc })
-                        foreach (var settlement in new[] { FutureType.ThisWeek, FutureType.NextWeek, FutureType.Quarter })
                         foreach (var chan in new[] { ChanelType.Depth60, ChanelType.Trades })
                         {
-                            var product = new Future() { Currency = Currency.Usd, CoinType = coin, FutureType = settlement };
-                            writer.Send(new SubscribeRequest() { Product = product, ChannelType = chan });
+                                // Subscribe to market data for spots.
+                                var spot = new Spot() { Currency = Currency.Usd, CoinType = coin };
+                                writer.Send(new SubscribeRequest() { Product = spot, ChannelType = chan });
+                                // Subscribe to market data for futures.
+                                foreach (var settlement in new[] { FutureType.ThisWeek, FutureType.NextWeek, FutureType.Quarter })
+                                {
+                                    var future = new Future() { Currency = Currency.Usd, CoinType = coin, FutureType = settlement };
+                                    writer.Send(new SubscribeRequest() { Product = future, ChannelType = chan });
+                                }
                         }
                     };
                     connection.OnMessage += (ArraySegment<byte>? bytes) =>
