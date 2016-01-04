@@ -58,10 +58,13 @@
     <Compile Include="Infra\IConnector.cs" />
     <Compile Include="Infra\WebSocket\Connection.cs" />
     <Compile Include="Infra\WebSocket\Connector.cs" />
+    <Compile Include="OkCoin\Codec.cs" />
     <Compile Include="OkCoin\Connection.cs" />
     <Compile Include="OkCoin\Connector.cs" />
     <Compile Include="DurableConnection.cs" />
     <Compile Include="Infra\Printable.cs" />
+    <Compile Include="OkCoin\Messages.cs" />
+    <Compile Include="OkCoin\Serializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

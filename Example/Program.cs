@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using ExchangeApi.OkCoin;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,19 +10,6 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.Example
 {
-    class Codec : ICodec<ArraySegment<byte>?, ArraySegment<byte>>
-    {
-        public ArraySegment<byte>? Parse(ArraySegment<byte> msg)
-        {
-            return msg;
-        }
-
-        public ArraySegment<byte> Serialize(ArraySegment<byte> msg)
-        {
-            return msg;
-        }
-    }
-
     class Program
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
@@ -35,15 +23,20 @@ namespace ExchangeApi.Example
         {
             try
             {
-                var connector = new CodingConnector<ArraySegment<byte>?, ArraySegment<byte>>(
+                var connector = new CodingConnector<ArraySegment<byte>?, IMessageOut>(
                     new WebSocket.Connector("wss://real.okcoin.com:10440/websocket/okcoinapi"),
                     new Codec());
-                using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
+                using (var connection = new DurableConnection<ArraySegment<byte>?, IMessageOut>(connector))
                 {
-                    connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
+                    connection.OnConnection += (IWriter<IMessageOut> writer) =>
                     {
-                        writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_depth_this_week_60'}"));
-                        writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_future_trade_v1_this_week'}"));
+                        foreach (var coin in new[] { CoinType.Btc, CoinType.Ltc })
+                        foreach (var settlement in new[] { FutureType.ThisWeek, FutureType.NextWeek, FutureType.Quarter })
+                        foreach (var chan in new[] { ChanelType.Depth60, ChanelType.Trades })
+                        {
+                            var product = new Future() { Currency = Currency.Usd, CoinType = coin, FutureType = settlement };
+                            writer.Send(new SubscribeRequest() { Product = product, ChannelType = chan });
+                        }
                     };
                     connection.OnMessage += (ArraySegment<byte>? bytes) =>
                     {
