@@ -24,7 +24,7 @@ namespace ExchangeApi.WebSocket
             Disposed,
         }
 
-        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+        static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         readonly string _endpoint;
 

@@ -36,7 +36,7 @@ namespace ExchangeApi
             { }
         }
 
-        private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+        static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         // Not null.
         readonly IConnector<In, Out> _connector;

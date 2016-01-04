@@ -25,7 +25,7 @@ namespace ExchangeApi
 
         class Connection : IConnection<In, Out>
         {
-            private static readonly Logger _log = LogManager.GetCurrentClassLogger();
+            static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
             readonly IConnection<ArraySegment<byte>?, ArraySegment<byte>> _connection;
             readonly ICodec<In, Out> _codec;
@@ -43,22 +43,25 @@ namespace ExchangeApi
                         OnMessage?.Invoke(default(In));
                         return;
                     }
-                    In message;
+                    IEnumerable<In> messages;
                     try
                     {
-                        message = _codec.Parse(bytes.Value);
+                        messages = _codec.Parse(bytes.Value);
                     }
                     catch (Exception e)
                     {
                         _log.Warn(e, "Unable to parse an incoming message. Ignoring it.");
                         return;
                     }
-                    if (message == null)
+                    if (messages == null)
                     {
                         _log.Info("Ignoring incoming message");
                         return;
                     }
-                    OnMessage?.Invoke(message);
+                    foreach (In msg in messages)
+                    {
+                        OnMessage?.Invoke(msg);
+                    }
                 };
             }
 

@@ -24,6 +24,7 @@ namespace ExchangeApi.OkCoin
     public interface IVisitorIn<T>
     {
         T Visit(ProductDepth msg);
+        T Visit(ProductTrades msg);
     }
 
     public enum Currency
@@ -53,9 +54,9 @@ namespace ExchangeApi.OkCoin
 
     public class Amount : Printable<Amount>
     {
-        public decimal Quantity { get; set; }
-        public decimal Price { get; set; }
         public Side Side { get; set; }
+        public decimal Price { get; set; }
+        public decimal Quantity { get; set; }
     }
 
     public enum ProductType
@@ -89,6 +90,7 @@ namespace ExchangeApi.OkCoin
     public class ProductDepth : Printable<ProductDepth>, IMessageIn
     {
         public Product Product { get; set; }
+        public DateTime Timestamp { get; set; }
         public List<Amount> Orders { get; set; }
 
         public T Visit<T>(IVisitorIn<T> v)
@@ -104,10 +106,15 @@ namespace ExchangeApi.OkCoin
         public DateTime Timestamp { get; set; }
     }
 
-    public class ProductTrades : Printable<ProductTrades>
+    public class ProductTrades : Printable<ProductTrades>, IMessageIn
     {
         public Product Product { get; set; }
         public List<Trade> Trades { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
     public enum OrderStatus

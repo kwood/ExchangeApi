@@ -10,6 +10,6 @@ namespace ExchangeApi
     {
         ArraySegment<byte> Serialize(Out msg);
 
-        In Parse(ArraySegment<byte> msg);
+        IEnumerable<In> Parse(ArraySegment<byte> msg);
     }
 }
