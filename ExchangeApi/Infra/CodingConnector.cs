@@ -38,20 +38,25 @@ namespace ExchangeApi
                 _codec = codec;
                 _connection.OnMessage += (ArraySegment<byte>? bytes) =>
                 {
-                    In message = default(In);
-                    if (bytes.HasValue)
+                    if (bytes == null)
                     {
-                        try
-                        {
-                            message = _codec.Parse(bytes.Value);
-                            Condition.Requires(message, "message")
-                                .Evaluate(message != null, "ICodec.Parse must not return null");
-                        }
-                        catch (Exception e)
-                        {
-                            _log.Warn(e, "Unable to parse an incoming message");
-                            return;
-                        }
+                        OnMessage?.Invoke(default(In));
+                        return;
+                    }
+                    In message;
+                    try
+                    {
+                        message = _codec.Parse(bytes.Value);
+                    }
+                    catch (Exception e)
+                    {
+                        _log.Warn(e, "Unable to parse an incoming message. Ignoring it.");
+                        return;
+                    }
+                    if (message == null)
+                    {
+                        _log.Info("Ignoring incoming message");
+                        return;
                     }
                     OnMessage?.Invoke(message);
                 };
