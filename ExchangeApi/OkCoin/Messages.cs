@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Conditions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -70,6 +71,7 @@ namespace ExchangeApi.OkCoin
         ProductType ProductType { get; }
         Currency Currency { get; set; }
         CoinType CoinType { get; set; }
+        string Instrument { get; }
     }
 
     public class Spot : Printable<Spot>, Product
@@ -77,6 +79,20 @@ namespace ExchangeApi.OkCoin
         public ProductType ProductType { get { return ProductType.Spot; } }
         public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
+
+        // { CoinType = Btc, Currency = Usd } => "btc_usd_spot".
+        //
+        // Instrument.Parse() does the reverse transformation.
+        // For any well formed string s: Instrument.Parse(s).Instrument == s.
+        public string Instrument
+        {
+            get
+            {
+                return String.Format("{0}_{1}_spot",
+                                     Util.Strings.CamelCaseToUnderscores(CoinType.ToString()).ToLower(),
+                                     Util.Strings.CamelCaseToUnderscores(Currency.ToString()).ToLower());
+            }
+        }
     }
 
     public class Future : Printable<Future>, Product
@@ -85,6 +101,48 @@ namespace ExchangeApi.OkCoin
         public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
         public FutureType FutureType { get; set; }
+
+        // { CoinType = Btc, Currency = Usd, FutureType = ThisWeek } => "btc_usd_this_week".
+        //
+        // Instrument.Parse() does the reverse transformation.
+        // For any well formed string s: Instrument.Parse(s).Instrument == s.
+        public string Instrument
+        {
+            get
+            {
+                return String.Format("{0}_{1}_{2}",
+                                     Util.Strings.CamelCaseToUnderscores(CoinType.ToString()).ToLower(),
+                                     Util.Strings.CamelCaseToUnderscores(Currency.ToString()).ToLower(),
+                                     Util.Strings.CamelCaseToUnderscores(FutureType.ToString()).ToLower());
+            }
+        }
+    }
+
+    public static class Instrument
+    {
+        // "btc_usd_spot" => new Spot() { CoinType = Btc, Currency = Usd }.
+        //
+        // Throws on error.
+        //
+        // Product.Instrument does the reverse transformation.
+        // For any well formed string s: Instrument.Parse(s).Instrument == s.
+        public static Product Parse(string instrument)
+        {
+            Condition.Requires(instrument, "instrument").IsNotNullOrEmpty();
+            string[] parts = instrument.Split(new char[] { '_' }, 3);
+            Condition.Requires(parts, "parts").HasLength(3, String.Format("Invalid instrument: '{0}'", instrument));
+            var coin = (CoinType)Enum.Parse(typeof(CoinType), Util.Strings.UnderscoresToCamelCase(parts[0]));
+            var currency = (Currency)Enum.Parse(typeof(Currency), Util.Strings.UnderscoresToCamelCase(parts[1]));
+            if (parts[2] == "spot")
+            {
+                return new Spot() { CoinType = coin, Currency = currency };
+            }
+            else
+            {
+                var ft = (FutureType)Enum.Parse(typeof(FutureType), Util.Strings.UnderscoresToCamelCase(parts[2]));
+                return new Future() { CoinType = coin, Currency = currency, FutureType = ft };
+            }
+        }
     }
 
     public class ProductDepth : Printable<ProductDepth>, IMessageIn

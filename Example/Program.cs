@@ -48,19 +48,15 @@ namespace Example
             {
                 connection.OnConnection += (IWriter<IMessageOut> writer) =>
                 {
-                    foreach (var coin in new[] { CoinType.Btc, CoinType.Ltc })
-                    foreach (var chan in new[] { ChanelType.Depth60, ChanelType.Trades })
-                    {
-                        // Subscribe to market data for spots.
-                        var spot = new Spot() { Currency = Currency.Usd, CoinType = coin };
-                        writer.Send(new SubscribeRequest() { Product = spot, ChannelType = chan });
-                        // Subscribe to market data for futures.
-                        foreach (var settlement in new[] { FutureType.ThisWeek, FutureType.NextWeek, FutureType.Quarter })
-                        {
-                            var future = new Future() { Currency = Currency.Usd, CoinType = coin, FutureType = settlement };
-                            writer.Send(new SubscribeRequest() { Product = future, ChannelType = chan });
-                        }
-                    }
+                    // Subscribe to depths and trades on BTC/USD spot.
+                    Product product = Instrument.Parse("btc_usd_spot");
+                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Depth60 });
+                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Trades });
+
+                    // Subscribe to depths and trades on BTC/USD future with settlement this week.
+                    product = Instrument.Parse("btc_usd_this_week");
+                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Depth60 });
+                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Trades });
                 };
                 connection.OnMessage += (IMessageIn msg) =>
                 {

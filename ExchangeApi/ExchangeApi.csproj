@@ -69,6 +69,7 @@
     <Compile Include="OkCoin\Parser.cs" />
     <Compile Include="OkCoin\Serializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util\Strings.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
