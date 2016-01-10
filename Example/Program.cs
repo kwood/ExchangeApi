@@ -41,12 +41,9 @@ namespace Example
 
         static void StructuredConnection()
         {
-            var connector = new CodingConnector<IMessageIn, IMessageOut>(
-                    new ExchangeApi.WebSocket.Connector(Instance.OkCoinCom),
-                    new Codec());
-            using (var connection = new DurableConnection<IMessageIn, IMessageOut>(connector))
+            using (var client = new Client(Instance.OkCoinCom))
             {
-                connection.OnConnection += (IWriter<IMessageOut> writer) =>
+                client.OnConnection += (IWriter<IMessageOut> writer) =>
                 {
                     // Subscribe to depths and trades on BTC/USD spot.
                     Product product = Instrument.Parse("btc_usd_spot");
@@ -58,11 +55,11 @@ namespace Example
                     writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Depth60 });
                     writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Trades });
                 };
-                connection.OnMessage += (IMessageIn msg) =>
+                client.OnMessage += (IMessageIn msg) =>
                 {
                     _log.Info("OnMessage: ({0}) {1}", msg.GetType(), msg);
                 };
-                connection.Connect();
+                client.Connect();
                 Thread.Sleep(60000);
             }
             Thread.Sleep(2000);

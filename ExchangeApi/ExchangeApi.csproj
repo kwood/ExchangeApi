@@ -59,8 +59,8 @@
     <Compile Include="Infra\IConnector.cs" />
     <Compile Include="Infra\WebSocket\Connection.cs" />
     <Compile Include="Infra\WebSocket\Connector.cs" />
+    <Compile Include="OkCoin\Client.cs" />
     <Compile Include="OkCoin\Codec.cs" />
-    <Compile Include="OkCoin\Connection.cs" />
     <Compile Include="OkCoin\Connector.cs" />
     <Compile Include="DurableConnection.cs" />
     <Compile Include="Infra\Printable.cs" />
