@@ -109,8 +109,8 @@ namespace ExchangeApi
         }
 
         // Blocks if another thread is currently operating on the connection that was obtained
-        // via TryLock(). If no one is holding an instance of IWriter<Out>, then this method
-        // doesn't block.
+        // via TryLock(), Lock() or LockWithTimeout(). If no one is holding an instance of IWriter<Out>,
+        // then this method doesn't block.
         //
         // Usage:
         //
@@ -126,19 +126,52 @@ namespace ExchangeApi
         // It's OK to call methods of DurableConnection while holding the lock.
         public IWriter<Out> TryLock()
         {
+            return LockWithTimeout(TimeSpan.Zero);
+        }
+
+        // Similar to TryLock() but waits for the connection to be established.
+        // Negative timeout means infinity. Lock(TimeSpan.Zero) is essentially TryLock().
+        //
+        // Usage:
+        //
+        //   DurableConnection<In, Out> dc = ...;
+        //   using (IWriter<Out> w = dc.Lock())
+        //   {
+        //       // We are connected and are holding an exclusive lock on the connection.
+        //   }
+        public IWriter<Out> Lock()
+        {
+            return LockWithTimeout(TimeSpan.FromMilliseconds(-1));
+        }
+
+        // Negative timeout means infinity. Lock(TimeSpan.Zero) is essentially TryLock().
+        public IWriter<Out> LockWithTimeout(TimeSpan timeout)
+        {
+            DateTime? deadline = null;
+            if (timeout >= TimeSpan.Zero) deadline = DateTime.UtcNow + timeout;
             // We are grabbing two locks here: first _connectionMonitor, then _stateMonitor.
             // The order is important because the caller will retain the lock on
             // _connectionMonitor and may call methods that grab _stateMonitor.
             System.Threading.Monitor.Enter(_connectionMonitor);
             lock (_stateMonitor)
             {
-                if (_state == State.Connected)
+                while (_state != State.Connected)
                 {
-                    return new ExclusiveWriter<In, Out>(this, _connection, _connectionMonitor);
+                    if (deadline.HasValue)
+                    {
+                        TimeSpan t = deadline.Value - DateTime.UtcNow;
+                        if (t <= TimeSpan.Zero || !System.Threading.Monitor.Wait(_stateMonitor, t))
+                        {
+                            System.Threading.Monitor.Exit(_connectionMonitor);
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        System.Threading.Monitor.Wait(_stateMonitor);
+                    }
                 }
-                // Not connected.
-                System.Threading.Monitor.Exit(_connectionMonitor);
-                return null;
+                return new ExclusiveWriter<In, Out>(this, _connection, _connectionMonitor);
             }
         }
 
@@ -266,6 +299,7 @@ namespace ExchangeApi
                     {
                         _log.Info("Changing connection state to Connected");
                         _state = State.Connected;
+                        System.Threading.Monitor.PulseAll(_stateMonitor);
                     }
                     else if (_state == State.Disconnecting && !connected)
                     {
