@@ -25,7 +25,7 @@ namespace Example
             var connector = new ExchangeApi.WebSocket.Connector(Instance.OkCoinCom);
             using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
             {
-                connection.OnConnection += (IWriter<ArraySegment<byte>> writer) =>
+                connection.OnConnection += (IReader<ArraySegment<byte>?> reader, IWriter<ArraySegment<byte>> writer) =>
                 {
                     writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_trades_v1'}"));
                 };
@@ -43,7 +43,7 @@ namespace Example
         {
             using (var client = new Client(Instance.OkCoinCom))
             {
-                client.OnConnection += (IWriter<IMessageOut> writer) =>
+                client.OnConnection += (IReader<IMessageIn> reader, IWriter<IMessageOut> writer) =>
                 {
                     // Subscribe to depths and trades on BTC/USD spot.
                     Product product = Instrument.Parse("btc_usd_spot");

@@ -14,6 +14,34 @@ namespace ExchangeApi
         void Send(Out message);
     }
 
+    // This interface is used by the DurableConnection.OnConnection event handler.
+    // It allows for arbitrary exchange of messages between the server and the client when
+    // establishing a connection.
+    public interface IReader<In>
+    {
+        // Returns message at the head of the queue.
+        // May block indefinitely waiting for data.
+        // Doesn't remove the message from the head of the queue.
+        // Throws on IO error.
+        In Peek();
+        // Variant of Peek() with timeout. Negative timeout means infinity.
+        // Zero timeout will succeed if there is already a message in the queue (it won't read from the network).
+        // Throws on IO error.
+        bool PeekWithTimeout(TimeSpan timeout, out In msg);
+        // Discards the message at the top of the queue. This message will NOT be delivered to
+        // the DurableConnection.OnMessage event handler after the connection is established.
+        void Consume();
+        // Skips the message at the top of the queue. This message WILL be delivered to
+        // the DurableConnection.OnMessage event handler after the connection is established.
+        void Skip();
+    }
+
+    public class ConnectionReadError : Exception
+    {
+        public ConnectionReadError()
+            : base("Read error while trying to establish a connection") { }
+    }
+
     // Requires: default(In) == null.
     // It means that In must be either a class or Nullable<T>.
     public class DurableConnection<In, Out> : IDisposable
@@ -53,11 +81,15 @@ namespace ExchangeApi
         {
             if (default(In) != null)
             {
-                throw new Exception("Invalid `In` type parameter in CodingConnector<In, Out>: " + typeof(In));
+                throw new Exception("Invalid `In` type parameter in DurableConnection<In, Out>: " + typeof(In));
             }
         }
 
-        // This event fires whenever a message is received.
+        // This event fires whenever a message is received. All calls are serialized.
+        // If OnConnection event handler throws, events from that connection aren't delivered.
+        // Events for which OnConnection called IReader.Consume() are also not delivered.
+        // Events may be delivered even after the event handler is unsubscribed and after the Disconnect()
+        // or Dispose() call.
         //
         // TODO: consider adding another argument: Func<bool>, which returns
         // the Connected property of the IConnection that gave us this message.
@@ -66,12 +98,8 @@ namespace ExchangeApi
         public event Action<In> OnMessage;
 
         // This event is fired whenever a new IConnection is created. If it throws,
-        // the connection is deemed broken and gets discarded.
-        //
-        // Some protocols may require an exchange of messages when establishing a
-        // connection. When the need arises, the argument of this action will have to
-        // become something more sophisticated than IWriter.
-        public event Action<IWriter<Out>> OnConnection;
+        // the connection is deemed broken and gets discarded. It's OK to block there.
+        public event Action<IReader<In>, IWriter<Out>> OnConnection;
 
         public DurableConnection(IConnector<In, Out> connector)
         {
@@ -149,20 +177,25 @@ namespace ExchangeApi
         {
             DateTime? deadline = null;
             if (timeout >= TimeSpan.Zero) deadline = DateTime.UtcNow + timeout;
-            // We are grabbing two locks here: first _connectionMonitor, then _stateMonitor.
-            // The order is important because the caller will retain the lock on
-            // _connectionMonitor and may call methods that grab _stateMonitor.
-            System.Threading.Monitor.Enter(_connectionMonitor);
-            lock (_stateMonitor)
+            while (true)
             {
-                while (_state != State.Connected)
+                // We are grabbing two locks here: first _connectionMonitor, then _stateMonitor.
+                // The order is important because the caller will retain the lock on
+                // _connectionMonitor and may call methods that grab _stateMonitor.
+                System.Threading.Monitor.Enter(_connectionMonitor);
+                lock (_stateMonitor)
                 {
+                    if (_state == State.Connected)
+                    {
+                        return new ExclusiveWriter<In, Out>(this, _connection, _connectionMonitor);
+                    }
+                    // Unlock _connectionMonitor before going into waiting. We'll reacquire it afterwards.
+                    System.Threading.Monitor.Exit(_connectionMonitor);
                     if (deadline.HasValue)
                     {
                         TimeSpan t = deadline.Value - DateTime.UtcNow;
                         if (t <= TimeSpan.Zero || !System.Threading.Monitor.Wait(_stateMonitor, t))
                         {
-                            System.Threading.Monitor.Exit(_connectionMonitor);
                             return null;
                         }
                     }
@@ -171,7 +204,6 @@ namespace ExchangeApi
                         System.Threading.Monitor.Wait(_stateMonitor);
                     }
                 }
-                return new ExclusiveWriter<In, Out>(this, _connection, _connectionMonitor);
             }
         }
 
@@ -183,7 +215,21 @@ namespace ExchangeApi
             {
                 if (Connected) return;
                 if (!Transitioning) ManageConnectionAfter(TimeSpan.Zero);
-                _state = State.Connecting;
+                if (_state == State.Disconnected)
+                {
+                    _state = State.Connecting;
+                }
+                else if (_state == State.Disconnecting)
+                {
+                    // Calling Disconnect() + Connect() should be equivalent to calling Reconnect().
+                    // If we set _state to Connecting here, Disconnect() + Connect() could result in a
+                    // no-op if ManageConnection() gets delayed.
+                    _state = State.Reconnecting;
+                }
+                else
+                {
+                    throw new InvalidConnectionStateException(_state);
+                }
             }
         }
 
@@ -283,33 +329,35 @@ namespace ExchangeApi
                 if (shouldDisconnect && _connection != null)
                 {
                     try { _connection.Dispose(); }
-                    catch (Exception e) { _log.Error(e, "Unexpected exception from T.Dispose(). Swallowing it."); }
+                    catch (Exception e) { _log.Warn(e, "Ignoring exception from IConnection.Dispose()"); }
                     _connection = null;
                 }
+                Reader<In> reader = null;
                 if (shouldConnect && _connection == null)
                 {
-                    // Doesn't throw. Null on error.
-                    _connection = NewConnection();
+                    // Doesn't throw. Sets connection and reader to null on error.
+                    NewConnection(out _connection, out reader);
                 }
-                lock (_stateMonitor)
+                switch (UpdateState())
                 {
-                    if (!Transitioning) throw new InvalidConnectionStateException(_state);
-                    bool connected = _connection != null;
-                    if (_state == State.Connecting && connected)
-                    {
-                        _log.Info("Changing connection state to Connected");
-                        _state = State.Connected;
-                        System.Threading.Monitor.PulseAll(_stateMonitor);
-                    }
-                    else if (_state == State.Disconnecting && !connected)
-                    {
-                        _log.Info("Changing connection state to Disconnected");
-                        _state = State.Disconnected;
-                    }
-                    else
-                    {
-                        ManageConnectionAfter(TimeSpan.FromSeconds(shouldConnect && !connected ? 1 : 0));
-                    }
+                    case State.Connecting:
+                    case State.Disconnecting:
+                    case State.Reconnecting:
+                        // Attempts to connect are repeated with 1 second delay.
+                        // All other transitions can happen instantly.
+                        ManageConnectionAfter(TimeSpan.FromSeconds(shouldConnect && _connection == null ? 1 : 0));
+                        break;
+                    case State.Connected:
+                        if (reader != null)
+                        {
+                            // Send buffered and all future messages to OnMessage.
+                            reader.SinkTo((In message) =>
+                            {
+                                if (message == null) Reconnect();
+                                else OnMessage?.Invoke(message);
+                            });
+                        }
+                        break;
                 }
             }
             catch (Exception e)
@@ -318,28 +366,55 @@ namespace ExchangeApi
             }
         }
 
-        // Doesn't throw. Null on error.
-        IConnection<In, Out> NewConnection()
+        State UpdateState()
         {
-            IConnection<In, Out> res = null;
+            lock (_stateMonitor)
+            {
+                if (!Transitioning) throw new InvalidConnectionStateException(_state);
+                bool connected = _connection != null;
+                if (_state == State.Connecting && connected)
+                {
+                    _log.Info("Changing connection state to Connected");
+                    _state = State.Connected;
+                    // LockWithTimeout() might be waiting for _state to become Connected.
+                    System.Threading.Monitor.PulseAll(_stateMonitor);
+                }
+                else if (_state == State.Disconnecting && !connected)
+                {
+                    _log.Info("Changing connection state to Disconnected");
+                    _state = State.Disconnected;
+                }
+                return _state;
+            }
+        }
+
+        // Doesn't throw. In case of error both `connection` and `reader` are set to null.
+        // Otherwise both are non-null.
+        void NewConnection(out IConnection<In, Out> connection, out Reader<In> reader)
+        {
+            connection = null;
+            var r = new Reader<In>();
             try
             {
-                res = _connector.NewConnection();
-                Condition.Requires(res).IsNotNull();
-                res.OnMessage += (In message) =>
-                {
-                    if (message == null) Reconnect();
-                    else OnMessage?.Invoke(message);
-                };
-                res.Connect();
-                OnConnection?.Invoke(new SimpleWriter<In, Out>(res));
-                return res;
+                connection = _connector.NewConnection();
+                Condition.Requires(connection).IsNotNull();
+                connection.OnMessage += (In msg) => r.Push(msg);
+                connection.Connect();
+                OnConnection?.Invoke(r, new SimpleWriter<In, Out>(connection));
+                // If OnConnection() handler swallowed read error exceptions, CheckHealth() will throw.
+                r.CheckHealth();
+                reader = r;
             }
             catch (Exception e)
             {
                 _log.Warn(e, "Unable to connect. Will retry.");
-                if (res != null) res.Dispose();
-                return null;
+                if (connection != null)
+                {
+                    try { connection.Dispose(); }
+                    catch (Exception ex) { _log.Error(ex, "Ignoring exception from IConnection.Dispose()"); }
+                    connection = null;
+                }
+                reader = null;
             }
         }
     }
@@ -400,6 +475,72 @@ namespace ExchangeApi
 
         public void Dispose()
         {
+        }
+    }
+
+    class Reader<In> : IReader<In>
+    {
+        readonly MessageQueue<In> _queue = new MessageQueue<In>();
+
+        bool _broken = false;
+
+        static Reader()
+        {
+            if (default(In) != null)
+            {
+                throw new Exception("Invalid `In` type parameter in Reader<In>: " + typeof(In));
+            }
+        }
+
+        public void CheckHealth()
+        {
+            if (_broken) throw new ConnectionReadError();
+        }
+
+        public void Push(In msg)
+        {
+            _queue.Push(msg);
+        }
+
+        public void SinkTo(Action<In> sink)
+        {
+            _queue.SinkTo(sink);
+        }
+
+        public void Consume()
+        {
+            if (_broken) throw new ConnectionReadError();
+            _queue.Consume();
+        }
+
+        public In Peek()
+        {
+            if (_broken) throw new ConnectionReadError();
+            In msg = _queue.Peek();
+            if (msg == null)
+            {
+                _broken = true;
+                throw new ConnectionReadError();
+            }
+            return msg;
+        }
+
+        public bool PeekWithTimeout(TimeSpan timeout, out In msg)
+        {
+            if (_broken) throw new ConnectionReadError();
+            if (!_queue.PeekWithTimeout(timeout, out msg)) return false;
+            if (msg == null)
+            {
+                _broken = true;
+                throw new ConnectionReadError();
+            }
+            return true;
+        }
+
+        public void Skip()
+        {
+            if (_broken) throw new ConnectionReadError();
+            _queue.Skip();
         }
     }
 }
