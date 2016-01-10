@@ -44,7 +44,7 @@ namespace ExchangeApi
                     if (_sink == null)
                     {
                         _unconsumed.Enqueue(entry);
-                        if (_unconsumed.Count == 1) System.Threading.Monitor.Pulse(_monitor);
+                        System.Threading.Monitor.PulseAll(_monitor);
                     }
                     return;
                 }
