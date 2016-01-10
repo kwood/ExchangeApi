@@ -53,7 +53,7 @@ namespace ExchangeApi.OkCoin
         Sell = -1,
     }
 
-    public class Amount : Printable<Amount>
+    public class Amount : Util.Printable<Amount>
     {
         public Side Side { get; set; }
         public decimal Price { get; set; }
@@ -74,7 +74,7 @@ namespace ExchangeApi.OkCoin
         string Instrument { get; }
     }
 
-    public class Spot : Printable<Spot>, Product
+    public class Spot : Util.Printable<Spot>, Product
     {
         public ProductType ProductType { get { return ProductType.Spot; } }
         public Currency Currency { get; set; }
@@ -95,7 +95,7 @@ namespace ExchangeApi.OkCoin
         }
     }
 
-    public class Future : Printable<Future>, Product
+    public class Future : Util.Printable<Future>, Product
     {
         public ProductType ProductType { get { return ProductType.Future; } }
         public Currency Currency { get; set; }
@@ -145,7 +145,7 @@ namespace ExchangeApi.OkCoin
         }
     }
 
-    public class ProductDepth : Printable<ProductDepth>, IMessageIn
+    public class ProductDepth : Util.Printable<ProductDepth>, IMessageIn
     {
         public Product Product { get; set; }
         public DateTime Timestamp { get; set; }
@@ -157,14 +157,14 @@ namespace ExchangeApi.OkCoin
         }
     }
 
-    public class Trade : Printable<Trade>
+    public class Trade : Util.Printable<Trade>
     {
         public long Id { get; set; }
         public Amount Amount { get; set; }
         public DateTime Timestamp { get; set; }
     }
 
-    public class ProductTrades : Printable<ProductTrades>, IMessageIn
+    public class ProductTrades : Util.Printable<ProductTrades>, IMessageIn
     {
         public Product Product { get; set; }
         public List<Trade> Trades { get; set; }
@@ -184,7 +184,7 @@ namespace ExchangeApi.OkCoin
         Cancelling = 3,
     }
 
-    public class Fill : Printable<Fill>
+    public class Fill : Util.Printable<Fill>
     {
         public long FillId { get; set; }
         public long OrderId { get; set; }
@@ -201,7 +201,7 @@ namespace ExchangeApi.OkCoin
         Market,
     }
 
-    public class NewSpotRequest : Printable<NewSpotRequest>
+    public class NewSpotRequest : Util.Printable<NewSpotRequest>
     {
         public CoinType CoinType { get; set; }
         public Currency Currency { get; set; }
@@ -221,7 +221,7 @@ namespace ExchangeApi.OkCoin
         x20 = 20,
     }
 
-    public class NewFutureRequest : Printable<NewFutureRequest>
+    public class NewFutureRequest : Util.Printable<NewFutureRequest>
     {
         public CoinType CoinType { get; set; }
         public Currency Currency { get; set; }
@@ -232,19 +232,19 @@ namespace ExchangeApi.OkCoin
         public Levarage Levarage { get; set; }
     }
 
-    public class NewOrderResponse : Printable<NewOrderResponse>
+    public class NewOrderResponse : Util.Printable<NewOrderResponse>
     {
         public Product Product { get; set; }
         public long? OrderId { get; set; }
     }
 
-    public class CancelOrderRequest : Printable<CancelOrderRequest>
+    public class CancelOrderRequest : Util.Printable<CancelOrderRequest>
     {
         public Product Product { get; set; }
         public long OrderId { get; set; }
     }
 
-    public class CancelOrderResponse : Printable<CancelOrderResponse>
+    public class CancelOrderResponse : Util.Printable<CancelOrderResponse>
     {
         public Product Product { get; set; }
         public long? OrderId { get; set; }
@@ -256,7 +256,7 @@ namespace ExchangeApi.OkCoin
         Trades,
     }
 
-    public class SubscribeRequest : Printable<SubscribeRequest>, IMessageOut
+    public class SubscribeRequest : Util.Printable<SubscribeRequest>, IMessageOut
     {
         public Product Product { get; set; }
         public ChanelType ChannelType { get; set; }

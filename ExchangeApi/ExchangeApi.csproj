@@ -63,7 +63,7 @@
     <Compile Include="OkCoin\Client.cs" />
     <Compile Include="OkCoin\Codec.cs" />
     <Compile Include="DurableConnection.cs" />
-    <Compile Include="Infra\Printable.cs" />
+    <Compile Include="Util\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />
     <Compile Include="OkCoin\Messages.cs" />
     <Compile Include="OkCoin\Parser.cs" />
