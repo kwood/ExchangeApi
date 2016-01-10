@@ -71,6 +71,12 @@ namespace ExchangeApi.OkCoin
         ProductType ProductType { get; }
         Currency Currency { get; set; }
         CoinType CoinType { get; set; }
+
+        // Instrument uniquely identifies a product.
+        // Use it for comparing products for equality.
+        //
+        // Instrument.Parse() does the reverse transformation.
+        // For any well formed string s: Instrument.Parse(s).Instrument == s.
         string Instrument { get; }
     }
 
@@ -81,17 +87,17 @@ namespace ExchangeApi.OkCoin
         public CoinType CoinType { get; set; }
 
         // { CoinType = Btc, Currency = Usd } => "btc_usd_spot".
-        //
-        // Instrument.Parse() does the reverse transformation.
-        // For any well formed string s: Instrument.Parse(s).Instrument == s.
         public string Instrument
         {
             get
             {
-                return String.Format("{0}_{1}_spot",
-                                     Util.Strings.CamelCaseToUnderscores(CoinType.ToString()).ToLower(),
-                                     Util.Strings.CamelCaseToUnderscores(Currency.ToString()).ToLower());
+                return String.Format("{0}_{1}_spot", PrintEnum(CoinType), PrintEnum(Currency));
             }
+        }
+
+        static string PrintEnum<E>(E e)
+        {
+            return Util.Strings.CamelCaseToUnderscores(e.ToString()).ToLower();
         }
     }
 
@@ -103,18 +109,17 @@ namespace ExchangeApi.OkCoin
         public FutureType FutureType { get; set; }
 
         // { CoinType = Btc, Currency = Usd, FutureType = ThisWeek } => "btc_usd_this_week".
-        //
-        // Instrument.Parse() does the reverse transformation.
-        // For any well formed string s: Instrument.Parse(s).Instrument == s.
         public string Instrument
         {
             get
             {
-                return String.Format("{0}_{1}_{2}",
-                                     Util.Strings.CamelCaseToUnderscores(CoinType.ToString()).ToLower(),
-                                     Util.Strings.CamelCaseToUnderscores(Currency.ToString()).ToLower(),
-                                     Util.Strings.CamelCaseToUnderscores(FutureType.ToString()).ToLower());
+                return String.Format("{0}_{1}_{2}", PrintEnum(CoinType), PrintEnum(Currency), PrintEnum(FutureType));
             }
+        }
+
+        static string PrintEnum<E>(E e)
+        {
+            return Util.Strings.CamelCaseToUnderscores(e.ToString()).ToLower();
         }
     }
 
@@ -131,17 +136,21 @@ namespace ExchangeApi.OkCoin
             Condition.Requires(instrument, "instrument").IsNotNullOrEmpty();
             string[] parts = instrument.Split(new char[] { '_' }, 3);
             Condition.Requires(parts, "parts").HasLength(3, String.Format("Invalid instrument: '{0}'", instrument));
-            var coin = (CoinType)Enum.Parse(typeof(CoinType), Util.Strings.UnderscoresToCamelCase(parts[0]));
-            var currency = (Currency)Enum.Parse(typeof(Currency), Util.Strings.UnderscoresToCamelCase(parts[1]));
+            var coin = ParseEnum<CoinType>(parts[0]);
+            var currency = ParseEnum<Currency>(parts[1]);
             if (parts[2] == "spot")
             {
                 return new Spot() { CoinType = coin, Currency = currency };
             }
             else
             {
-                var ft = (FutureType)Enum.Parse(typeof(FutureType), Util.Strings.UnderscoresToCamelCase(parts[2]));
-                return new Future() { CoinType = coin, Currency = currency, FutureType = ft };
+                return new Future() { CoinType = coin, Currency = currency, FutureType = ParseEnum<FutureType>(parts[2]) };
             }
+        }
+
+        static E ParseEnum<E>(string s)
+        {
+            return (E)Enum.Parse(typeof(E), Util.Strings.UnderscoresToCamelCase(s));
         }
     }
 
