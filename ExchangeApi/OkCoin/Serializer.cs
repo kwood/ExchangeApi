@@ -10,7 +10,7 @@ namespace ExchangeApi.OkCoin
     {
         public string Visit(SubscribeRequest msg)
         {
-            // SubscribeRequest looks like this: {'event':'addChannel','channel':'${channel}'}.
+            // SubscribeRequest looks like this: {"event":"addChannel","channel":"${channel}"}.
             //
             // Representative examples of channel names:
             //   ok_btcusd_trades_v1
@@ -18,7 +18,7 @@ namespace ExchangeApi.OkCoin
             //   ok_btcusd_future_trade_v1_this_week
             //   ok_btcusd_future_depth_this_week_60
             var res = new StringBuilder(100);
-            res.Append("{'event':'addChannel','channel':'ok_");
+            res.Append("{\"event\":\"addChannel\",\"channel\":\"ok_");
             switch (msg.Product.CoinType)
             {
                 case CoinType.Btc: res.Append("btc"); break;
@@ -55,7 +55,7 @@ namespace ExchangeApi.OkCoin
                     }
                     break;
             }
-            res.Append("'}");
+            res.Append("\"}");
             return res.ToString();
         }
 
