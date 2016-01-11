@@ -53,6 +53,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Coinbase\Instance.cs" />
+    <Compile Include="Coinbase\Messages.cs" />
+    <Compile Include="Coinbase\RestClient.cs" />
     <Compile Include="Infra\CodingConnector.cs" />
     <Compile Include="Infra\ICodec.cs" />
     <Compile Include="Infra\IConnection.cs" />

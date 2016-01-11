@@ -1,5 +1,4 @@
 ﻿using ExchangeApi;
-using ExchangeApi.OkCoin;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -22,12 +21,12 @@ namespace Example
 
         static void RawConnection()
         {
-            var connector = new ExchangeApi.WebSocket.Connector(Instance.OkCoinCom);
+            var connector = new ExchangeApi.WebSocket.Connector(ExchangeApi.Coinbase.Instance.Prod.WebSocket);
             using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
             {
                 connection.OnConnection += (IReader<ArraySegment<byte>?> reader, IWriter<ArraySegment<byte>> writer) =>
                 {
-                    writer.Send(Encode("{'event':'addChannel','channel':'ok_btcusd_trades_v1'}"));
+                    writer.Send(Encode("{ \"type\": \"subscribe\", \"product_id\": \"BTC-USD\" }"));
                 };
                 connection.OnMessage += (ArraySegment<byte>? msg) =>
                 {
@@ -41,28 +40,43 @@ namespace Example
 
         static void StructuredConnection()
         {
-            using (var client = new Client(Instance.OkCoinCom))
+            using (var client = new ExchangeApi.OkCoin.Client(ExchangeApi.OkCoin.Instance.OkCoinCom))
             {
-                client.OnConnection += (IReader<IMessageIn> reader, IWriter<IMessageOut> writer) =>
+                client.OnConnection += (IReader<ExchangeApi.OkCoin.IMessageIn> reader,
+                                        IWriter<ExchangeApi.OkCoin.IMessageOut> writer) =>
                 {
                     // Subscribe to depths and trades on BTC/USD spot.
-                    Product product = Instrument.Parse("btc_usd_spot");
-                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Depth60 });
-                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Trades });
+                    ExchangeApi.OkCoin.Product product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot");
+                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                        Product = product, ChannelType = ExchangeApi.OkCoin.ChanelType.Depth60 });
+                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                        Product = product, ChannelType = ExchangeApi.OkCoin.ChanelType.Trades });
 
                     // Subscribe to depths and trades on BTC/USD future with settlement this week.
-                    product = Instrument.Parse("btc_usd_this_week");
-                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Depth60 });
-                    writer.Send(new SubscribeRequest() { Product = product, ChannelType = ChanelType.Trades });
+                    product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week");
+                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                        Product = product, ChannelType = ExchangeApi.OkCoin.ChanelType.Depth60 });
+                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                        Product = product, ChannelType = ExchangeApi.OkCoin.ChanelType.Trades });
                 };
-                client.OnMessage += (IMessageIn msg) =>
+                client.OnMessage += (ExchangeApi.OkCoin.IMessageIn msg) =>
                 {
                     _log.Info("OnMessage: ({0}) {1}", msg.GetType(), msg);
                 };
                 client.Connect();
-                Thread.Sleep(60000);
+                Thread.Sleep(3000);
             }
             Thread.Sleep(2000);
+        }
+
+        static void CoinbaseRest()
+        {
+            using (var client = new ExchangeApi.Coinbase.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
+            {
+                ExchangeApi.Coinbase.OrderBook book = client.GetProductOrderBook("BTC-USD");
+                _log.Info("Order book sequence: {0}", book.Sequence);
+                _log.Info("Order book has {0} order(s)", book.Orders.Count);
+            }
         }
 
         static void Main(string[] args)
@@ -70,7 +84,8 @@ namespace Example
             try
             {
                 // RawConnection();
-                StructuredConnection();
+                // StructuredConnection();
+                CoinbaseRest();
             }
             catch (Exception e)
             {
