@@ -85,21 +85,45 @@ namespace ExchangeApi
             }
         }
 
-        // This event fires whenever a message is received. All calls are serialized.
-        // If OnConnection event handler throws, events from that connection aren't delivered.
-        // Events for which OnConnection called IReader.Consume() are also not delivered.
-        // Events may be delivered even after the event handler is unsubscribed and after the Disconnect()
-        // or Dispose() call.
+        // All events are serialized.
         //
-        // TODO: consider adding another argument: Func<bool>, which returns
-        // the Connected property of the IConnection that gave us this message.
-        // This can be useful if we ever decide to call reconnect based on the
-        // content of a received message.
-        public event Action<In> OnMessage;
+        // The lifetime of a successful connection:
+        //
+        //   1. OnConnection doesn't throw.
+        //   2. OnConnected.
+        //   3. Zero or more OnMessage.
+        //   4. OnDisconnected.
+        //
+        // The lifetime of an unsuccessful connection:
+        //
+        //   1. OnConnection throws.
+        //
+        // The lifetime of a DurableConnection consists of a sequence of zero or
+        // more scenarious described above.
+        //
+        // All events may fire even after the event handler is unsubscribed and after
+        // the Disconnect() or Dispose() call.
 
         // This event is fired whenever a new IConnection is created. If it throws,
         // the connection is deemed broken and gets discarded. It's OK to block there.
+        // OnMessage won't fire while OnConnection is running: messages get buffered and
+        // delivered only when and if OnConnection successfully returns.
+        //
+        // If it doesn't throw, OnConnected is the next message that fires.
         public event Action<IReader<In>, IWriter<Out>> OnConnection;
+
+        // This event fires whenever a message is received.
+        // If OnConnection event handler throws, events from that connection aren't delivered.
+        // Events for which OnConnection called IReader.Consume() are also not delivered (they are deemed
+        // consumed by OnConnection).
+        public event Action<In> OnMessage;
+
+        // Fires when a connection is lost. The only event that may fire immediately
+        // after it is OnConnection. Does NOT fire as a result of OnConnection throwing.
+        public event Action OnDisconnected;
+
+        // Fires when a connection is established, which happens immediately after OnConnection.
+        public event Action OnConnected;
 
         public DurableConnection(IConnector<In, Out> connector)
         {
@@ -331,6 +355,8 @@ namespace ExchangeApi
                     try { _connection.Dispose(); }
                     catch (Exception e) { _log.Warn(e, "Ignoring exception from IConnection.Dispose()"); }
                     _connection = null;
+                    try { OnDisconnected?.Invoke(); }
+                    catch (Exception e) { _log.Warn(e, "Ignoring exception from OnDisconnected"); }
                 }
                 Reader<In> reader = null;
                 if (shouldConnect && _connection == null)
@@ -348,6 +374,8 @@ namespace ExchangeApi
                         ManageConnectionAfter(TimeSpan.FromSeconds(shouldConnect && _connection == null ? 1 : 0));
                         break;
                     case State.Connected:
+                        try { OnConnected?.Invoke(); }
+                        catch (Exception e) { _log.Warn(e, "Ignoring exception from OnConnected"); }
                         if (reader != null)
                         {
                             // Send buffered and all future messages to OnMessage.
