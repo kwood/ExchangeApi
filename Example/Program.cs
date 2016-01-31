@@ -22,7 +22,7 @@ namespace Example
         static void RawConnection()
         {
             var connector = new ExchangeApi.WebSocket.Connector(ExchangeApi.Coinbase.Instance.Prod.WebSocket);
-            using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector))
+            using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector, new Scheduler()))
             {
                 connection.OnConnection += (IReader<ArraySegment<byte>?> reader, IWriter<ArraySegment<byte>> writer) =>
                 {
