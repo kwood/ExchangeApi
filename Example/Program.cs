@@ -40,7 +40,12 @@ namespace Example
 
         static void StructuredConnection()
         {
-            using (var client = new ExchangeApi.OkCoin.Client(ExchangeApi.OkCoin.Instance.OkCoinCom))
+            var keys = new ExchangeApi.OkCoin.Keys()
+            {
+                ApiKey = "MY_API_KEY",
+                SecretKey = "MY_SECRET_KEY",
+            };
+            using (var client = new ExchangeApi.OkCoin.Client(ExchangeApi.OkCoin.Instance.OkCoinCom, keys))
             {
                 client.OnConnection += (IReader<ExchangeApi.OkCoin.IMessageIn> reader,
                                         IWriter<ExchangeApi.OkCoin.IMessageOut> writer) =>
@@ -64,6 +69,27 @@ namespace Example
                     _log.Info("OnMessage(IsLast={0}): ({1}) {2}", isLast, msg.GetType(), msg);
                 };
                 client.Connect();
+                using (var writer = client.Lock())
+                {
+                    var req = new ExchangeApi.OkCoin.NewFutureRequest()
+                    {
+                        Amount = new ExchangeApi.OkCoin.Amount()
+                        {
+                            Side = ExchangeApi.OkCoin.Side.Buy,
+                            Price = 370m,
+                            Quantity = 1m,
+                        },
+                        CoinType = ExchangeApi.OkCoin.CoinType.Btc,
+                        Currency = ExchangeApi.OkCoin.Currency.Usd,
+                        FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
+                        Levarage = ExchangeApi.OkCoin.Leverage.x10,
+                        OrderType = ExchangeApi.OkCoin.OrderType.Limit,
+                        PositionType = ExchangeApi.OkCoin.PositionType.Long,
+                    };
+                    // Successful response: [{"channel":"ok_futuresusd_trade","data":{"order_id":"1476459990","result":"true"}}].
+                    // Unsuccessful response: [{"channel":"ok_futuresusd_trade","errorcode":"20024","success":"false"}]
+                    writer.Send(req);
+                }
                 Thread.Sleep(3000);
             }
             Thread.Sleep(2000);
@@ -79,6 +105,32 @@ namespace Example
             }
         }
 
+        static void OkCoinSerializer()
+        {
+            var keys = new ExchangeApi.OkCoin.Keys()
+            {
+                ApiKey = "MY_API_KEY",
+                SecretKey = "MY_SECRET_KEY",
+            };
+            var serializer = new ExchangeApi.OkCoin.Serializer(keys);
+            var req = new ExchangeApi.OkCoin.NewFutureRequest()
+            {
+                Amount = new ExchangeApi.OkCoin.Amount()
+                {
+                    Side = ExchangeApi.OkCoin.Side.Buy,
+                    Price = 12.34m,
+                    Quantity = 56.78m,
+                },
+                CoinType = ExchangeApi.OkCoin.CoinType.Btc,
+                Currency = ExchangeApi.OkCoin.Currency.Usd,
+                FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
+                Levarage = ExchangeApi.OkCoin.Leverage.x10,
+                OrderType = ExchangeApi.OkCoin.OrderType.Limit,
+                PositionType = ExchangeApi.OkCoin.PositionType.Long,
+            };
+            Console.WriteLine(serializer.Visit(req));
+        }
+
         static void Main(string[] args)
         {
             try
@@ -86,6 +138,7 @@ namespace Example
                 // RawConnection();
                 StructuredConnection();
                 // CoinbaseRest();
+                // OkCoinSerializer();
             }
             catch (Exception e)
             {
