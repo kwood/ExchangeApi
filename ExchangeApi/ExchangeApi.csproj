@@ -63,12 +63,15 @@
     <Compile Include="Infra\MessageQueue.cs" />
     <Compile Include="Infra\PriorityQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
+    <Compile Include="OkCoin\Authenticator.cs" />
+    <Compile Include="OkCoin\Keys.cs" />
     <Compile Include="Scheduler.cs" />
     <Compile Include="Infra\WebSocket\Connection.cs" />
     <Compile Include="Infra\WebSocket\Connector.cs" />
     <Compile Include="OkCoin\Client.cs" />
     <Compile Include="OkCoin\Codec.cs" />
     <Compile Include="DurableConnection.cs" />
+    <Compile Include="Util\Append.cs" />
     <Compile Include="Util\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />
     <Compile Include="OkCoin\Messages.cs" />
