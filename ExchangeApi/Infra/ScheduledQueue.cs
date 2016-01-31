@@ -34,8 +34,9 @@ namespace ExchangeApi
                 _data.Push(when, value);
                 if (_next != null)
                 {
-                    _next.RunSynchronously();
+                    Task next = _next;
                     _next = null;
+                    Task.Run(() => next.RunSynchronously());
                 }
             }
         }
