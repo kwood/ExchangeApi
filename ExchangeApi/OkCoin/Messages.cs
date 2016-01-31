@@ -15,6 +15,7 @@ namespace ExchangeApi.OkCoin
     public interface IVisitorOut<T>
     {
         T Visit(SubscribeRequest msg);
+        T Visit(NewFutureRequest msg);
     }
 
     public interface IMessageIn
@@ -220,17 +221,17 @@ namespace ExchangeApi.OkCoin
 
     public enum PositionType
     {
-        Open,
-        Close,
+        Long,
+        Short,
     }
 
-    public enum Levarage
+    public enum Leverage
     {
         x10 = 10,
         x20 = 20,
     }
 
-    public class NewFutureRequest : Util.Printable<NewFutureRequest>
+    public class NewFutureRequest : Util.Printable<NewFutureRequest>, IMessageOut
     {
         public CoinType CoinType { get; set; }
         public Currency Currency { get; set; }
@@ -238,7 +239,12 @@ namespace ExchangeApi.OkCoin
         public FutureType FutureType { get; set; }
         public Amount Amount { get; set; }
         public PositionType PositionType { get; set; }
-        public Levarage Levarage { get; set; }
+        public Leverage Levarage { get; set; }
+
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
     public class NewOrderResponse : Util.Printable<NewOrderResponse>

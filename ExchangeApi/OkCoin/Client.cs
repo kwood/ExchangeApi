@@ -8,9 +8,9 @@ namespace ExchangeApi.OkCoin
 {
     public class Client : DurableConnection<IMessageIn, IMessageOut>
     {
-        public Client(string endpoint)
+        public Client(string endpoint, Keys keys)
             : base(new CodingConnector<IMessageIn, IMessageOut>(
-                       new WebSocket.Connector(Instance.OkCoinCom), new Codec()),
+                       new WebSocket.Connector(Instance.OkCoinCom), new Codec(keys)),
                    new Scheduler())
         { }
     }

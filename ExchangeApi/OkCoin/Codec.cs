@@ -8,6 +8,13 @@ namespace ExchangeApi.OkCoin
 {
     public class Codec : ICodec<IMessageIn, IMessageOut>
     {
+        readonly Serializer _serializer;
+
+        public Codec(Keys keys)
+        {
+            _serializer = new Serializer(keys);
+        }
+
         public IEnumerable<IMessageIn> Parse(ArraySegment<byte> msg)
         {
             return Parser.Parse(Decode(msg));
@@ -15,7 +22,7 @@ namespace ExchangeApi.OkCoin
 
         public ArraySegment<byte> Serialize(IMessageOut msg)
         {
-            return Encode(msg.Visit(new Serializer()));
+            return Encode(msg.Visit(_serializer));
         }
 
         static ArraySegment<byte> Encode(string s)
