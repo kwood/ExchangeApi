@@ -187,8 +187,8 @@ namespace ExchangeApi.WebSocket
                 {
                     var incoming = new TimestampedMsg<ArraySegment<byte>>()
                     {
+                        Received = DateTime.UtcNow,
                         Value = new ArraySegment<byte>(message),
-                        Received = DateTime.UtcNow
                     };
                     Notify(incoming);
                     message = null;

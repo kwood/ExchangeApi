@@ -109,7 +109,7 @@ namespace ExchangeApi
         // If OnConnection event handler throws, events from that connection aren't delivered.
         // Events for which OnConnection called IReader.Consume() are also not delivered (they are deemed
         // consumed by OnConnection).
-        public event Action<TimestampedMsg<In>> OnMessage;
+        public event Action<TimestampedMsg<In>, bool> OnMessage;
 
         // Fires when a connection is lost. The only event that may fire immediately
         // after it is OnConnection. Does NOT fire as a result of OnConnection throwing.
@@ -380,7 +380,10 @@ namespace ExchangeApi
                         {
                             // Send buffered and all future messages to OnMessage.
                             var connection = _connection;
-                            reader.SinkTo((TimestampedMsg<In> msg) => _scheduler.Schedule(isLast => HandleMessage(connection, msg)));
+                            reader.SinkTo((TimestampedMsg<In> msg) =>
+                            {
+                                _scheduler.Schedule(isLast => HandleMessage(connection, msg, isLast));
+                            });
                         }
                         break;
                 }
@@ -446,11 +449,15 @@ namespace ExchangeApi
         }
 
         // Runs in the scheduler thread.
-        void HandleMessage(IConnection<In, Out> connection, TimestampedMsg<In> msg)
+        void HandleMessage(IConnection<In, Out> connection, TimestampedMsg<In> msg, bool isLast)
         {
             // We can read _connection without a lock because we are in the scheduler thread.
             // _connection can't be modified while we are running.
-            if (!Object.ReferenceEquals(connection, _connection)) return;
+            if (!Object.ReferenceEquals(connection, _connection))
+            {
+                _log.Info("Message belongs to a stale connection. Dropping it.");
+                return;
+            }
             if (msg == null)
             {
                 // Null message means unrecoverable network read error.
@@ -458,7 +465,7 @@ namespace ExchangeApi
             }
             else
             {
-                OnMessage?.Invoke(msg);
+                OnMessage?.Invoke(msg, isLast);
             }
         }
     }

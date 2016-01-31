@@ -50,7 +50,7 @@ namespace ExchangeApi
                     }
                     foreach (In msg in messages)
                     {
-                        OnMessage?.Invoke(new TimestampedMsg<In>() { Value = msg, Received = bytes.Received });
+                        OnMessage?.Invoke(new TimestampedMsg<In>() { Received = bytes.Received, Value = msg });
                     }
                 };
             }

@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi
 {
-    public class TimestampedMsg<T>
+    public class TimestampedMsg<T> : Util.Printable<TimestampedMsg<T>>
     {
-        public T Value;
         public DateTime Received;
+        public T Value;
     }
 
     // A thread-safe bidirectional stream of serialized messages.

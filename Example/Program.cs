@@ -22,15 +22,15 @@ namespace Example
         static void RawConnection()
         {
             var connector = new ExchangeApi.WebSocket.Connector(ExchangeApi.Coinbase.Instance.Prod.WebSocket);
-            using (var connection = new DurableConnection<ArraySegment<byte>?, ArraySegment<byte>>(connector, new Scheduler()))
+            using (var connection = new DurableConnection<ArraySegment<byte>, ArraySegment<byte>>(connector, new Scheduler()))
             {
-                connection.OnConnection += (IReader<ArraySegment<byte>?> reader, IWriter<ArraySegment<byte>> writer) =>
+                connection.OnConnection += (IReader<ArraySegment<byte>> reader, IWriter<ArraySegment<byte>> writer) =>
                 {
                     writer.Send(Encode("{ \"type\": \"subscribe\", \"product_id\": \"BTC-USD\" }"));
                 };
-                connection.OnMessage += (ArraySegment<byte>? msg) =>
+                connection.OnMessage += (TimestampedMsg<ArraySegment<byte>> msg, bool isLast) =>
                 {
-                    _log.Info("OnMessage: {0} byte(s)", msg.Value.Count);
+                    _log.Info("OnMessage(IsLast={0}): {1} byte(s)", isLast, msg.Value.Count);
                 };
                 connection.Connect();
                 Thread.Sleep(5000);
@@ -59,9 +59,9 @@ namespace Example
                     writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
                         Product = product, ChannelType = ExchangeApi.OkCoin.ChanelType.Trades });
                 };
-                client.OnMessage += (ExchangeApi.OkCoin.IMessageIn msg) =>
+                client.OnMessage += (TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> msg, bool isLast) =>
                 {
-                    _log.Info("OnMessage: ({0}) {1}", msg.GetType(), msg);
+                    _log.Info("OnMessage(IsLast={0}): ({1}) {2}", isLast, msg.GetType(), msg);
                 };
                 client.Connect();
                 Thread.Sleep(3000);
@@ -84,8 +84,8 @@ namespace Example
             try
             {
                 // RawConnection();
-                // StructuredConnection();
-                CoinbaseRest();
+                StructuredConnection();
+                // CoinbaseRest();
             }
             catch (Exception e)
             {
