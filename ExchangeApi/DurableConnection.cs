@@ -23,11 +23,11 @@ namespace ExchangeApi
         // May block indefinitely waiting for data.
         // Doesn't remove the message from the head of the queue.
         // Throws on IO error.
-        In Peek();
+        TimestampedMsg<In> Peek();
         // Variant of Peek() with timeout. Negative timeout means infinity.
         // Zero timeout will succeed if there is already a message in the queue (it won't read from the network).
         // Throws on IO error.
-        bool PeekWithTimeout(TimeSpan timeout, out In msg);
+        bool PeekWithTimeout(TimeSpan timeout, out TimestampedMsg<In> msg);
         // Discards the message at the top of the queue. This message will NOT be delivered to
         // the DurableConnection.OnMessage event handler after the connection is established.
         void Consume();
@@ -42,8 +42,6 @@ namespace ExchangeApi
             : base("Read error while trying to establish a connection") { }
     }
 
-    // Requires: default(In) == null.
-    // It means that In must be either a class or Nullable<T>.
     public class DurableConnection<In, Out> : IDisposable
     {
         enum State
@@ -80,14 +78,6 @@ namespace ExchangeApi
         // Not null. All events fire on this scheduler.
         readonly Scheduler _scheduler;
 
-        static DurableConnection()
-        {
-            if (default(In) != null)
-            {
-                throw new Exception("Invalid `In` type parameter in DurableConnection<In, Out>: " + typeof(In));
-            }
-        }
-
         // All events are serialized.
         //
         // The lifetime of a successful connection:
@@ -119,7 +109,7 @@ namespace ExchangeApi
         // If OnConnection event handler throws, events from that connection aren't delivered.
         // Events for which OnConnection called IReader.Consume() are also not delivered (they are deemed
         // consumed by OnConnection).
-        public event Action<In> OnMessage;
+        public event Action<TimestampedMsg<In>> OnMessage;
 
         // Fires when a connection is lost. The only event that may fire immediately
         // after it is OnConnection. Does NOT fire as a result of OnConnection throwing.
@@ -390,7 +380,7 @@ namespace ExchangeApi
                         {
                             // Send buffered and all future messages to OnMessage.
                             var connection = _connection;
-                            reader.SinkTo((In msg) => _scheduler.Schedule(isLast => HandleMessage(connection, msg)));
+                            reader.SinkTo((TimestampedMsg<In> msg) => _scheduler.Schedule(isLast => HandleMessage(connection, msg)));
                         }
                         break;
                 }
@@ -435,7 +425,7 @@ namespace ExchangeApi
             {
                 connection = _connector.NewConnection();
                 Condition.Requires(connection).IsNotNull();
-                connection.OnMessage += (In msg) => r.Push(msg);
+                connection.OnMessage += (TimestampedMsg<In> msg) => r.Push(msg);
                 connection.Connect();
                 OnConnection?.Invoke(r, new SimpleWriter<In, Out>(connection));
                 // If OnConnection() handler swallowed read error exceptions, CheckHealth() will throw.
@@ -456,7 +446,7 @@ namespace ExchangeApi
         }
 
         // Runs in the scheduler thread.
-        void HandleMessage(IConnection<In, Out> connection, In msg)
+        void HandleMessage(IConnection<In, Out> connection, TimestampedMsg<In> msg)
         {
             // We can read _connection without a lock because we are in the scheduler thread.
             // _connection can't be modified while we are running.
@@ -534,29 +524,21 @@ namespace ExchangeApi
 
     class Reader<In> : IReader<In>
     {
-        readonly MessageQueue<In> _queue = new MessageQueue<In>();
+        readonly MessageQueue<TimestampedMsg<In>> _queue = new MessageQueue<TimestampedMsg<In>>();
 
         bool _broken = false;
-
-        static Reader()
-        {
-            if (default(In) != null)
-            {
-                throw new Exception("Invalid `In` type parameter in Reader<In>: " + typeof(In));
-            }
-        }
 
         public void CheckHealth()
         {
             if (_broken) throw new ConnectionReadError();
         }
 
-        public void Push(In msg)
+        public void Push(TimestampedMsg<In> msg)
         {
             _queue.Push(msg);
         }
 
-        public void SinkTo(Action<In> sink)
+        public void SinkTo(Action<TimestampedMsg<In>> sink)
         {
             _queue.SinkTo(sink);
         }
@@ -567,10 +549,10 @@ namespace ExchangeApi
             _queue.Consume();
         }
 
-        public In Peek()
+        public TimestampedMsg<In> Peek()
         {
             if (_broken) throw new ConnectionReadError();
-            In msg = _queue.Peek();
+            TimestampedMsg<In> msg = _queue.Peek();
             if (msg == null)
             {
                 _broken = true;
@@ -579,7 +561,7 @@ namespace ExchangeApi
             return msg;
         }
 
-        public bool PeekWithTimeout(TimeSpan timeout, out In msg)
+        public bool PeekWithTimeout(TimeSpan timeout, out TimestampedMsg<In> msg)
         {
             if (_broken) throw new ConnectionReadError();
             if (!_queue.PeekWithTimeout(timeout, out msg)) return false;

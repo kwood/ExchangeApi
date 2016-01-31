@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi
 {
+    public class TimestampedMsg<T>
+    {
+        public T Value;
+        public DateTime Received;
+    }
+
     // A thread-safe bidirectional stream of serialized messages.
     public interface IConnection<In, Out> : IDisposable
     {
@@ -22,7 +28,7 @@ namespace ExchangeApi
         // event.
         //
         // Won't be fired until Connect() is called.
-        event Action<In> OnMessage;
+        event Action<TimestampedMsg<In>> OnMessage;
 
         // Must be called at most once. Blocks. Throws on error, in which case you
         // must call Dispose().

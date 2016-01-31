@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.WebSocket
 {
-    public class Connection : IConnection<ArraySegment<byte>?, ArraySegment<byte>>
+    public class Connection : IConnection<ArraySegment<byte>, ArraySegment<byte>>
     {
         enum State
         {
@@ -50,7 +50,7 @@ namespace ExchangeApi.WebSocket
         }
 
         // From IMessageStream.
-        public event Action<ArraySegment<byte>?> OnMessage;
+        public event Action<TimestampedMsg<ArraySegment<byte>>> OnMessage;
 
         // From IMessageStream.
         public void Connect()
@@ -185,14 +185,19 @@ namespace ExchangeApi.WebSocket
 
                 if (res.EndOfMessage && message != null)
                 {
-                    Notify(new ArraySegment<byte>(message));
+                    var incoming = new TimestampedMsg<ArraySegment<byte>>()
+                    {
+                        Value = new ArraySegment<byte>(message),
+                        Received = DateTime.UtcNow
+                    };
+                    Notify(incoming);
                     message = null;
                 }
             }
             _log.Info("Stopped reading data from ClientWebSocket");
         }
 
-        void Notify(ArraySegment<byte>? message)
+        void Notify(TimestampedMsg<ArraySegment<byte>> message)
         {
             if (message == null) _log.Info("IN: <ERROR>");
             else _log.Info("IN: {0}", DecodeForLogging(message.Value));
