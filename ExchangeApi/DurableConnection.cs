@@ -77,6 +77,9 @@ namespace ExchangeApi
         IConnection<In, Out> _connection = null;
         readonly object _connectionMonitor = new object();
 
+        // Not null. All events fire on this scheduler.
+        readonly Scheduler _scheduler;
+
         static DurableConnection()
         {
             if (default(In) != null)
@@ -125,18 +128,24 @@ namespace ExchangeApi
         // Fires when a connection is established, which happens immediately after OnConnection.
         public event Action OnConnected;
 
-        public DurableConnection(IConnector<In, Out> connector)
+        // Does not take ownership of `scheduler`: DurableConnection.Dispose() won't call Scheduler.Dispose().
+        public DurableConnection(IConnector<In, Out> connector, Scheduler scheduler)
         {
             Condition.Requires(connector, "connector").IsNotNull();
+            Condition.Requires(scheduler, "scheduler").IsNotNull();
             _connector = connector;
+            _scheduler = scheduler;
         }
 
+        // Does not dispose of the scheduler.
         public void Dispose()
         {
             // Note that disconnect() is asynchronous. If there is a live connection, it may be
             // destroyed after Dispose() returns.
             Disconnect();
         }
+
+        public Scheduler Scheduler { get { return _scheduler; } }
 
         // Doesn't block.
         public bool Connected
@@ -310,10 +319,11 @@ namespace ExchangeApi
         void ManageConnectionAfter(TimeSpan delay)
         {
             _log.Info("Scheduling connection management in {0}", delay);
-            Task.Delay(delay).ContinueWith(t => ManageConnection());
+            _scheduler.Schedule(DateTime.UtcNow + delay, isLast => ManageConnection());
         }
 
         // Blocks.
+        // Runs in the scheduler thread.
         void ManageConnection()
         {
             try
@@ -379,11 +389,8 @@ namespace ExchangeApi
                         if (reader != null)
                         {
                             // Send buffered and all future messages to OnMessage.
-                            reader.SinkTo((In message) =>
-                            {
-                                if (message == null) Reconnect();
-                                else OnMessage?.Invoke(message);
-                            });
+                            var connection = _connection;
+                            reader.SinkTo((In msg) => _scheduler.Schedule(isLast => HandleMessage(connection, msg)));
                         }
                         break;
                 }
@@ -394,6 +401,7 @@ namespace ExchangeApi
             }
         }
 
+        // Runs in the scheduler thread.
         State UpdateState()
         {
             lock (_stateMonitor)
@@ -416,6 +424,7 @@ namespace ExchangeApi
             }
         }
 
+        // Runs in the scheduler thread.
         // Doesn't throw. In case of error both `connection` and `reader` are set to null.
         // Otherwise both are non-null.
         void NewConnection(out IConnection<In, Out> connection, out Reader<In> reader)
@@ -443,6 +452,23 @@ namespace ExchangeApi
                     connection = null;
                 }
                 reader = null;
+            }
+        }
+
+        // Runs in the scheduler thread.
+        void HandleMessage(IConnection<In, Out> connection, In msg)
+        {
+            // We can read _connection without a lock because we are in the scheduler thread.
+            // _connection can't be modified while we are running.
+            if (!Object.ReferenceEquals(connection, _connection)) return;
+            if (msg == null)
+            {
+                // Null message means unrecoverable network read error.
+                Reconnect();
+            }
+            else
+            {
+                OnMessage?.Invoke(msg);
             }
         }
     }

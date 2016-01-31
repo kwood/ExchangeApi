@@ -10,7 +10,8 @@ namespace ExchangeApi.OkCoin
     {
         public Client(string endpoint)
             : base(new CodingConnector<IMessageIn, IMessageOut>(
-                       new WebSocket.Connector(Instance.OkCoinCom), new Codec()))
+                       new WebSocket.Connector(Instance.OkCoinCom), new Codec()),
+                   new Scheduler())
         { }
     }
 }
