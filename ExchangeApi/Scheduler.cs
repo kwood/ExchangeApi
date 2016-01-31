@@ -12,7 +12,7 @@ namespace ExchangeApi
     // run in different threads but they won't run concurrently.
     // Actions can be scheduled in the future. The execution order is what you
     // would expect: stable sorting by the scheduled time.
-    class Scheduler : IDisposable
+    public class Scheduler : IDisposable
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
@@ -30,7 +30,7 @@ namespace ExchangeApi
         // The argument of the action is true if and only if there are no ready
         // actions scheduled after it. In other words, it indicates the last ready
         // action.
-        public void Schedule(Action<bool> action, DateTime when)
+        public void Schedule(DateTime when, Action<bool> action)
         {
             _actions.Push(action, when);
         }
@@ -38,7 +38,7 @@ namespace ExchangeApi
         // Schedules the specified action to run ASAP.
         public void Schedule(Action<bool> action)
         {
-            Schedule(action, DateTime.UtcNow);
+            Schedule(DateTime.UtcNow, action);
         }
 
         // Blocks until the background thread is stopped.

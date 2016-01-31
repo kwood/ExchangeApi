@@ -63,7 +63,7 @@
     <Compile Include="Infra\MessageQueue.cs" />
     <Compile Include="Infra\PriorityQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
-    <Compile Include="Infra\Scheduler.cs" />
+    <Compile Include="Scheduler.cs" />
     <Compile Include="Infra\WebSocket\Connection.cs" />
     <Compile Include="Infra\WebSocket\Connector.cs" />
     <Compile Include="OkCoin\Client.cs" />
