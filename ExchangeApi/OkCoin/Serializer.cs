@@ -51,7 +51,7 @@ namespace ExchangeApi.OkCoin
 
             string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
-                                 Serialization.NewFutureChannel(msg.Currency), parameters);
+                                 Serialization.NewOrderChannel(ProductType.Future, msg.Currency), parameters);
         }
     }
 }

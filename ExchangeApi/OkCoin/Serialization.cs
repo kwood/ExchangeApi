@@ -48,9 +48,19 @@ namespace ExchangeApi.OkCoin
             return res.ToString();
         }
 
-        public static string NewFutureChannel(Currency currency)
+        public static string NewOrderChannel(ProductType p, Currency currency)
         {
-            return String.Format("ok_futures{0}_trade", AsString(currency));
+            return String.Format("ok_{0}{1}_trade", AsString(p), AsString(currency));
+        }
+
+        public static string AsString(ProductType p)
+        {
+            switch (p)
+            {
+                case ProductType.Spot: return "spot";
+                case ProductType.Future: return "futures";
+            }
+            throw new ArgumentException("Unknown ProductType: " + p);
         }
 
         public static string AsString(FutureType f)
