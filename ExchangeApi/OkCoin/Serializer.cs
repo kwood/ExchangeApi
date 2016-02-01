@@ -24,7 +24,7 @@ namespace ExchangeApi.OkCoin
         {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\"}}",
-                                 Serialization.SubscribeChannel(msg.Product, msg.ChannelType));
+                                 Serialization.SubscribeChannel(msg.Product, msg.MarketData));
         }
 
         public string Visit(NewFutureRequest msg)

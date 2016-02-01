@@ -106,9 +106,9 @@ namespace ExchangeApi.OkCoin
         {
             Action<Product> Subscribe = (Product product) =>
             {
-                _messageCtors.Add(Serialization.SubscribeChannel(product, ChannelType.Depth60),
+                _messageCtors.Add(Serialization.SubscribeChannel(product, MarketData.Depth60),
                                   () => new ProductDepth() { Product = product });
-                _messageCtors.Add(Serialization.SubscribeChannel(product, ChannelType.Trades),
+                _messageCtors.Add(Serialization.SubscribeChannel(product, MarketData.Trades),
                                   () => new ProductTrades() { Product = product });
             };
             foreach (var currency in Util.Enum.Values<Currency>())

@@ -330,7 +330,7 @@ namespace ExchangeApi.OkCoin
         public long? OrderId { get; set; }
     }
 
-    public enum ChannelType
+    public enum MarketData
     {
         Depth60,
         Trades,
@@ -339,7 +339,7 @@ namespace ExchangeApi.OkCoin
     public class SubscribeRequest : Util.Printable<SubscribeRequest>, IMessageOut
     {
         public Product Product { get; set; }
-        public ChannelType ChannelType { get; set; }
+        public MarketData MarketData { get; set; }
 
         public T Visit<T>(IVisitorOut<T> v)
         {

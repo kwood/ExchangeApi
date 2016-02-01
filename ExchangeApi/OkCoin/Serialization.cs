@@ -8,7 +8,7 @@ namespace ExchangeApi.OkCoin
 {
     public static class Serialization
     {
-        public static string SubscribeChannel(Product product, ChannelType ch)
+        public static string SubscribeChannel(Product product, MarketData ch)
         {
             // Representative examples of channel names:
             //   ok_btcusd_trades_v1
@@ -25,20 +25,20 @@ namespace ExchangeApi.OkCoin
                 case ProductType.Spot:
                     switch (ch)
                     {
-                        case ChannelType.Depth60: res.Append("depth60"); break;
-                        case ChannelType.Trades: res.Append("trades_v1"); break;
+                        case MarketData.Depth60: res.Append("depth60"); break;
+                        case MarketData.Trades: res.Append("trades_v1"); break;
                     }
                     break;
                 case ProductType.Future:
                     res.Append("future_");
                     switch (ch)
                     {
-                        case ChannelType.Depth60:
+                        case MarketData.Depth60:
                             res.Append("depth_");
                             res.Append(AsString(((Future)product).FutureType));
                             res.Append("_60");
                             break;
-                        case ChannelType.Trades:
+                        case MarketData.Trades:
                             res.Append("trade_v1_");
                             res.Append(AsString(((Future)product).FutureType));
                             break;
