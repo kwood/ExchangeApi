@@ -28,7 +28,7 @@ namespace ExchangeApi.OkCoin
     {
         T Visit(ProductDepth msg);
         T Visit(ProductTrades msg);
-        T Visit(NewOrderResponse msg);
+        T Visit(NewFutureResponse msg);
     }
 
     public enum Currency
@@ -305,7 +305,7 @@ namespace ExchangeApi.OkCoin
         }
     }
 
-    public class NewOrderResponse : Util.Printable<NewOrderResponse>, IMessageIn
+    public class NewFutureResponse : Util.Printable<NewFutureResponse>, IMessageIn
     {
         public ErrorCode? Error { get; set; }
 

@@ -21,7 +21,7 @@ namespace ExchangeApi.OkCoin
             _data = data;
         }
 
-        public IMessageIn Visit(NewOrderResponse msg)
+        public IMessageIn Visit(NewFutureResponse msg)
         {
             // {"order_id":"1476459990","result":"true"}
             if ((string)_data["result"] != "true")
@@ -114,7 +114,7 @@ namespace ExchangeApi.OkCoin
             foreach (var currency in Util.Enum.Values<Currency>())
             {
                 _messageCtors.Add(Serialization.NewFutureChannel(currency),
-                                  () => new NewOrderResponse() { Currency = currency });
+                                  () => new NewFutureResponse() { Currency = currency });
                 foreach (var coin in Util.Enum.Values<CoinType>())
                 {
                     Subscribe(new Spot() { Currency = currency, CoinType = coin });
