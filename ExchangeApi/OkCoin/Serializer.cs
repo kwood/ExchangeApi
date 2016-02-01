@@ -34,7 +34,7 @@ namespace ExchangeApi.OkCoin
             param.Add(new KV("contract_type", Serialization.AsString(msg.FutureType)));
             param.Add(new KV("amount", Serialization.AsString(msg.Amount.Quantity)));
             param.Add(new KV("type", Serialization.AsString(msg.Amount.Side, msg.PositionType)));
-            param.Add(new KV("lever_rate", Serialization.AsString(msg.Levarage)));
+            param.Add(new KV("lever_rate", Serialization.AsString(msg.Leverage)));
             param.Add(new KV(
                 "symbol", String.Format("{0}_{1}", Serialization.AsString(msg.CoinType), Serialization.AsString(msg.Currency))));
             if (msg.OrderType == OrderType.Limit)

@@ -297,7 +297,7 @@ namespace ExchangeApi.OkCoin
         public FutureType FutureType { get; set; }
         public Amount Amount { get; set; }
         public PositionType PositionType { get; set; }
-        public Leverage Levarage { get; set; }
+        public Leverage Leverage { get; set; }
 
         public T Visit<T>(IVisitorOut<T> v)
         {

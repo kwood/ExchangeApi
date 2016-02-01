@@ -82,7 +82,7 @@ namespace Example
                         CoinType = ExchangeApi.OkCoin.CoinType.Btc,
                         Currency = ExchangeApi.OkCoin.Currency.Usd,
                         FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
-                        Levarage = ExchangeApi.OkCoin.Leverage.x10,
+                        Leverage = ExchangeApi.OkCoin.Leverage.x10,
                         OrderType = ExchangeApi.OkCoin.OrderType.Limit,
                         PositionType = ExchangeApi.OkCoin.PositionType.Long,
                     };
@@ -124,7 +124,7 @@ namespace Example
                 CoinType = ExchangeApi.OkCoin.CoinType.Btc,
                 Currency = ExchangeApi.OkCoin.Currency.Usd,
                 FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
-                Levarage = ExchangeApi.OkCoin.Leverage.x10,
+                Leverage = ExchangeApi.OkCoin.Leverage.x10,
                 OrderType = ExchangeApi.OkCoin.OrderType.Limit,
                 PositionType = ExchangeApi.OkCoin.PositionType.Long,
             };
