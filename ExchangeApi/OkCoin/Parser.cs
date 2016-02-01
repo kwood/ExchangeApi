@@ -11,6 +11,8 @@ namespace ExchangeApi.OkCoin
 {
     public class MessageParser : IVisitorIn<IMessageIn>
     {
+        static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
         readonly JToken _data;
 
         public MessageParser(JToken data)
@@ -21,7 +23,14 @@ namespace ExchangeApi.OkCoin
 
         public IMessageIn Visit(NewFutureResponse msg)
         {
-            throw new NotImplementedException();
+            // {"order_id":"1476459990","result":"true"}
+            if ((string)_data["result"] != "true")
+            {
+                _log.Error("Unexpected response to new future request. Ignoring it.");
+                return null;
+            }
+            msg.OrderId = (long)_data["order_id"];
+            return msg;
         }
 
         public IMessageIn Visit(ProductTrades msg)
