@@ -33,6 +33,18 @@ namespace ExchangeApi.OkCoin
             return msg;
         }
 
+        public IMessageIn Visit(CancelOrderResponse msg)
+        {
+            // {"order_id":"1476459990","result":"true"}
+            if ((string)_data["result"] != "true")
+            {
+                _log.Error("Unexpected response to new future request. Ignoring it.");
+                return null;
+            }
+            msg.OrderId = (long)_data["order_id"];
+            return msg;
+        }
+
         public IMessageIn Visit(ProductTrades msg)
         {
             // [["78270746", "431.3", "0.01", "22:02:41", "ask"], ...]
@@ -117,6 +129,8 @@ namespace ExchangeApi.OkCoin
                 {
                     _messageCtors.Add(Serialization.NewOrderChannel(product, currency),
                                       () => new NewOrderResponse() { ProductType = product, Currency = currency });
+                    _messageCtors.Add(Serialization.CancelOrderChannel(product, currency),
+                                      () => new CancelOrderResponse() { ProductType = product, Currency = currency });
                 }
                 foreach (var coin in Util.Enum.Values<CoinType>())
                 {

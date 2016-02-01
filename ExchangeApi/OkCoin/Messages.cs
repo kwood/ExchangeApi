@@ -7,6 +7,13 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.OkCoin
 {
+    // TODO: add the following read-only property to IMessageIn and IMessageOut:
+    //
+    //   string Channel { get; }
+    //
+    // It should return the external channel name used by the message. It can be used
+    // by the user to avoid having concurrent messages sent to the same channel.
+
     public interface IMessageOut
     {
         T Visit<T>(IVisitorOut<T> v);
@@ -16,6 +23,7 @@ namespace ExchangeApi.OkCoin
     {
         T Visit(SubscribeRequest msg);
         T Visit(NewFutureRequest msg);
+        T Visit(CancelOrderRequest msg);
     }
 
     public interface IMessageIn
@@ -29,6 +37,7 @@ namespace ExchangeApi.OkCoin
         T Visit(ProductDepth msg);
         T Visit(ProductTrades msg);
         T Visit(NewOrderResponse msg);
+        T Visit(CancelOrderResponse msg);
     }
 
     public enum Currency
@@ -319,16 +328,29 @@ namespace ExchangeApi.OkCoin
         }
     }
 
-    public class CancelOrderRequest : Util.Printable<CancelOrderRequest>
+    public class CancelOrderRequest : Util.Printable<CancelOrderRequest>, IMessageOut
     {
         public Product Product { get; set; }
         public long OrderId { get; set; }
+
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
-    public class CancelOrderResponse : Util.Printable<CancelOrderResponse>
+    public class CancelOrderResponse : Util.Printable<CancelOrderResponse>, IMessageIn
     {
-        public Product Product { get; set; }
-        public long? OrderId { get; set; }
+        public ErrorCode? Error { get; set; }
+
+        public ProductType ProductType { get; set; }
+        public Currency Currency { get; set; }
+        public long OrderId { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
     public enum MarketData

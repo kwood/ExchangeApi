@@ -53,6 +53,11 @@ namespace ExchangeApi.OkCoin
             return String.Format("ok_{0}{1}_trade", AsString(p), AsString(currency));
         }
 
+        public static string CancelOrderChannel(ProductType p, Currency currency)
+        {
+            return String.Format("ok_{0}{1}_cancel_order", AsString(p), AsString(currency));
+        }
+
         public static string AsString(ProductType p)
         {
             switch (p)
@@ -92,6 +97,11 @@ namespace ExchangeApi.OkCoin
                 case Currency.Cny: return "cny";
             }
             throw new ArgumentException("Unknown Currency: " + c);
+        }
+
+        public static string AsString(CoinType coin, Currency currency)
+        {
+            return String.Format("{0}_{1}", AsString(coin), AsString(currency));
         }
 
         // Formats decimal without trailing zeros.
