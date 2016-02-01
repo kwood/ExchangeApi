@@ -17,7 +17,7 @@ namespace ExchangeApi.OkCoin
 
         public IEnumerable<IMessageIn> Parse(ArraySegment<byte> msg)
         {
-            return Parser.Parse(Decode(msg));
+            return ResponseParser.Parse(Decode(msg));
         }
 
         public ArraySegment<byte> Serialize(IMessageOut msg)

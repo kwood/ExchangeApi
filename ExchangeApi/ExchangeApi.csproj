@@ -67,6 +67,7 @@
     <Compile Include="Infra\PriorityQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="OkCoin\Authenticator.cs" />
+    <Compile Include="OkCoin\Serialization.cs" />
     <Compile Include="OkCoin\Keys.cs" />
     <Compile Include="Scheduler.cs" />
     <Compile Include="Infra\WebSocket\Connection.cs" />
@@ -75,6 +76,7 @@
     <Compile Include="OkCoin\Codec.cs" />
     <Compile Include="DurableConnection.cs" />
     <Compile Include="Util\Append.cs" />
+    <Compile Include="Util\Enum.cs" />
     <Compile Include="Util\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />
     <Compile Include="OkCoin\Messages.cs" />
@@ -82,6 +84,7 @@
     <Compile Include="OkCoin\Serializer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util\Strings.cs" />
+    <Compile Include="Util\Time.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
