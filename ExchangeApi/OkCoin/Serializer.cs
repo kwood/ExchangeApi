@@ -27,6 +27,17 @@ namespace ExchangeApi.OkCoin
                                  Channels.FromMessage(msg));
         }
 
+        public string Visit(MyOrdersRequest msg)
+        {
+            var param = new List<KV>(2);
+            param.Add(new KV("api_key", _keys.ApiKey));
+            param.Add(new KV("sign", Authenticator.Sign(_keys, param)));
+
+            string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
+            return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
+                                 Channels.FromMessage(msg), parameters);
+        }
+
         public string Visit(NewFutureRequest msg)
         {
             var param = new List<KV>(10);

@@ -8,7 +8,7 @@ namespace ExchangeApi.OkCoin
 {
     public static class Channels
     {
-        public static string MarketData(Product product, MarketData ch)
+        public static string MarketData(Product p, MarketData ch)
         {
             // Representative examples of channel names:
             //   ok_btcusd_trades_v1
@@ -17,10 +17,10 @@ namespace ExchangeApi.OkCoin
             //   ok_btcusd_future_depth_this_week_60
             var res = new StringBuilder(64);
             res.Append("ok_");
-            res.Append(Serialization.AsString(product.CoinType));
-            res.Append(Serialization.AsString(product.Currency));
+            res.Append(Serialization.AsString(p.CoinType));
+            res.Append(Serialization.AsString(p.Currency));
             res.Append("_");
-            switch (product.ProductType)
+            switch (p.ProductType)
             {
                 case ProductType.Spot:
                     switch (ch)
@@ -35,12 +35,12 @@ namespace ExchangeApi.OkCoin
                     {
                         case OkCoin.MarketData.Depth60:
                             res.Append("depth_");
-                            res.Append(Serialization.AsString(((Future)product).FutureType));
+                            res.Append(Serialization.AsString(((Future)p).FutureType));
                             res.Append("_60");
                             break;
                         case OkCoin.MarketData.Trades:
                             res.Append("trade_v1_");
-                            res.Append(Serialization.AsString(((Future)product).FutureType));
+                            res.Append(Serialization.AsString(((Future)p).FutureType));
                             break;
                     }
                     break;
@@ -48,14 +48,24 @@ namespace ExchangeApi.OkCoin
             return res.ToString();
         }
 
-        public static string NewOrder(ProductType p, Currency currency)
+        public static string MyOrders(ProductType p, Currency c)
         {
-            return String.Format("ok_{0}{1}_trade", Serialization.AsString(p), Serialization.AsString(currency));
+            switch (p)
+            {
+                case ProductType.Future: return String.Format("ok_{0}_future_realtrades", Serialization.AsString(c));
+                case ProductType.Spot: return String.Format("ok_{0}_realtrades", Serialization.AsString(c));
+            }
+            throw new ArgumentException("Unknown ProductType: " + p);
         }
 
-        public static string CancelOrder(ProductType p, Currency currency)
+        public static string NewOrder(ProductType p, Currency c)
         {
-            return String.Format("ok_{0}{1}_cancel_order", Serialization.AsString(p), Serialization.AsString(currency));
+            return String.Format("ok_{0}{1}_trade", Serialization.AsString(p), Serialization.AsString(c));
+        }
+
+        public static string CancelOrder(ProductType p, Currency c)
+        {
+            return String.Format("ok_{0}{1}_cancel_order", Serialization.AsString(p), Serialization.AsString(c));
         }
 
         public static string FromMessage(IMessageIn msg)
@@ -75,6 +85,11 @@ namespace ExchangeApi.OkCoin
             public string Visit(MarketDataRequest msg)
             {
                 return MarketData(msg.Product, msg.MarketData);
+            }
+
+            public string Visit(MyOrdersRequest msg)
+            {
+                return MyOrders(msg.ProductType, msg.Currency);
             }
 
             public string Visit(NewFutureRequest msg)

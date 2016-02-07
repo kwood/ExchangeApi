@@ -17,6 +17,7 @@ namespace ExchangeApi.OkCoin
         T Visit(MarketDataRequest msg);
         T Visit(NewFutureRequest msg);
         T Visit(CancelOrderRequest msg);
+        T Visit(MyOrdersRequest msg);
     }
 
     public interface IMessageIn
@@ -356,6 +357,17 @@ namespace ExchangeApi.OkCoin
     {
         public Product Product { get; set; }
         public MarketData MarketData { get; set; }
+
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class MyOrdersRequest : Util.Printable<MyOrdersRequest>, IMessageOut
+    {
+        public ProductType ProductType { get; set; }
+        public Currency Currency { get; set; }
 
         public T Visit<T>(IVisitorOut<T> v)
         {
