@@ -1,4 +1,5 @@
 ﻿using Conditions;
+using ExchangeApi.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,63 +23,65 @@ namespace ExchangeApi.OkCoin
 
         public string Visit(MarketDataRequest msg)
         {
+            return UnauthenticatedRequest(msg);
+        }
+
+        public string Visit(MyOrdersRequest msg)
+        {
+            return AuthenticatedRequest(msg, null);
+        }
+
+        public string Visit(NewFutureRequest msg)
+        {
+            IEnumerable<KV> param = new KV[]
+            {
+                new KV("contract_type", Serialization.AsString(msg.FutureType)),
+                new KV("amount", Serialization.AsString(msg.Amount.Quantity)),
+                new KV("type", Serialization.AsString(msg.Amount.Side, msg.PositionType)),
+                new KV("lever_rate", Serialization.AsString(msg.Leverage)),
+                new KV("symbol", Serialization.AsString(msg.CoinType, msg.Currency)),
+            };
+            if (msg.OrderType == OrderType.Limit)
+            {
+                param = param.Append(new KV("price", Serialization.AsString(msg.Amount.Price)))
+                             .Append(new KV("match_price", "0"));
+            }
+            else
+            {
+                param = param.Append(new KV("match_price", "1"));
+            }
+            return AuthenticatedRequest(msg, param);
+        }
+
+        public string Visit(CancelOrderRequest msg)
+        {
+            IEnumerable<KV> param = new KV[]
+            {
+                new KV("order_id", msg.OrderId.ToString()),
+                new KV("symbol", Serialization.AsString(msg.Product.CoinType, msg.Product.Currency)),
+            };
+            var future = msg.Product as Future;
+            if (future != null)
+            {
+                param = param.Append(new KV("contract_type", Serialization.AsString(future.FutureType)));
+            }
+            return AuthenticatedRequest(msg, param);
+        }
+
+        string UnauthenticatedRequest(IMessageOut msg)
+        {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\"}}",
                                  Channels.FromMessage(msg));
         }
 
-        public string Visit(MyOrdersRequest msg)
+        // `param` may be null (means empty).
+        string AuthenticatedRequest(IMessageOut msg, IEnumerable<KV> param)
         {
-            var param = new List<KV>(2);
-            param.Add(new KV("api_key", _keys.ApiKey));
-            param.Add(new KV("sign", Authenticator.Sign(_keys, param)));
-
-            string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
-            return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
-                                 Channels.FromMessage(msg), parameters);
-        }
-
-        public string Visit(NewFutureRequest msg)
-        {
-            var param = new List<KV>(10);
-            param.Add(new KV("api_key", _keys.ApiKey));
-            param.Add(new KV("contract_type", Serialization.AsString(msg.FutureType)));
-            param.Add(new KV("amount", Serialization.AsString(msg.Amount.Quantity)));
-            param.Add(new KV("type", Serialization.AsString(msg.Amount.Side, msg.PositionType)));
-            param.Add(new KV("lever_rate", Serialization.AsString(msg.Leverage)));
-            param.Add(new KV("symbol", Serialization.AsString(msg.CoinType, msg.Currency)));
-            if (msg.OrderType == OrderType.Limit)
-            {
-                param.Add(new KV("price", Serialization.AsString(msg.Amount.Price)));
-                param.Add(new KV("match_price", "0"));
-            }
-            else
-            {
-                param.Add(new KV("match_price", "1"));
-            }
+            param = param ?? new KV[0];
+            param = param.Append(new KV("api_key", _keys.ApiKey));
             // Signature is added last because its value depends on all other parameters.
-            param.Add(new KV("sign", Authenticator.Sign(_keys, param)));
-
-            string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
-            return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
-                                 Channels.FromMessage(msg), parameters);
-        }
-
-        public string Visit(CancelOrderRequest msg)
-        {
-            var param = new List<KV>(10);
-            param.Add(new KV("api_key", _keys.ApiKey));
-            param.Add(new KV("order_id", msg.OrderId.ToString()));
-            param.Add(new KV("symbol", Serialization.AsString(msg.Product.CoinType, msg.Product.Currency)));
-            var future = msg.Product as Future;
-            if (future != null)
-            {
-                param.Add(new KV("contract_type", Serialization.AsString(future.FutureType)));
-            }
-            // Signature is added last because its value depends on all other parameters.
-            param.Add(new KV("sign", Authenticator.Sign(_keys, param)));
-
-            // TODO: refactor Visit(NewFutureRequest) and Visit(CancelOrderRequest).
+            param = param.Append(new KV("sign", Authenticator.Sign(_keys, param)));
             string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
                                  Channels.FromMessage(msg), parameters);
