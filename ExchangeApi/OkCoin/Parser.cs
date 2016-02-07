@@ -17,12 +17,12 @@ namespace ExchangeApi.OkCoin
 
         public MessageParser(JToken data)
         {
-            Condition.Requires(data, "data").IsNotNull();
             _data = data;
         }
 
         public IMessageIn Visit(NewOrderResponse msg)
         {
+            Condition.Requires(_data, "data").IsNotNull();
             // {"order_id":"1476459990","result":"true"}
             if ((string)_data["result"] != "true")
             {
@@ -35,6 +35,7 @@ namespace ExchangeApi.OkCoin
 
         public IMessageIn Visit(CancelOrderResponse msg)
         {
+            Condition.Requires(_data, "data").IsNotNull();
             // {"order_id":"1476459990","result":"true"}
             if ((string)_data["result"] != "true")
             {
@@ -47,6 +48,7 @@ namespace ExchangeApi.OkCoin
 
         public IMessageIn Visit(ProductTrades msg)
         {
+            Condition.Requires(_data, "data").IsNotNull();
             // [["78270746", "431.3", "0.01", "22:02:41", "ask"], ...]
             //
             // Each element is [TradeId, Price, Quantity, Time, Side].
@@ -70,6 +72,7 @@ namespace ExchangeApi.OkCoin
 
         public IMessageIn Visit(ProductDepth msg)
         {
+            Condition.Requires(_data, "data").IsNotNull();
             // {
             //   "bids": [[432.76, 3.55],...],
             //   "asks": [[440.01, 3.15],...],
@@ -179,12 +182,9 @@ namespace ExchangeApi.OkCoin
                 msg.Error = (ErrorCode)int.Parse(errorcode);
                 return msg;
             }
+            // Note that data can be null. It expected for some messages.
+            // MessageParser will throw if it doesn't like null data.
             JToken data = root["data"];
-            if (data == null)
-            {
-                _log.Error("Incoming message is missing `data` field. Ignoring it.");
-                return null;
-            }
             try
             {
                 return msg.Visit(new MessageParser(data));
