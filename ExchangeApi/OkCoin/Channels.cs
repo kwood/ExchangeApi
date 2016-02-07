@@ -8,7 +8,7 @@ namespace ExchangeApi.OkCoin
 {
     public static class Channels
     {
-        public static string Subscribe(Product product, MarketData ch)
+        public static string MarketData(Product product, MarketData ch)
         {
             // Representative examples of channel names:
             //   ok_btcusd_trades_v1
@@ -25,20 +25,20 @@ namespace ExchangeApi.OkCoin
                 case ProductType.Spot:
                     switch (ch)
                     {
-                        case MarketData.Depth60: res.Append("depth60"); break;
-                        case MarketData.Trades: res.Append("trades_v1"); break;
+                        case OkCoin.MarketData.Depth60: res.Append("depth60"); break;
+                        case OkCoin.MarketData.Trades: res.Append("trades_v1"); break;
                     }
                     break;
                 case ProductType.Future:
                     res.Append("future_");
                     switch (ch)
                     {
-                        case MarketData.Depth60:
+                        case OkCoin.MarketData.Depth60:
                             res.Append("depth_");
                             res.Append(Serialization.AsString(((Future)product).FutureType));
                             res.Append("_60");
                             break;
-                        case MarketData.Trades:
+                        case OkCoin.MarketData.Trades:
                             res.Append("trade_v1_");
                             res.Append(Serialization.AsString(((Future)product).FutureType));
                             break;
@@ -72,9 +72,9 @@ namespace ExchangeApi.OkCoin
         {
             // IVisitorOut
 
-            public string Visit(SubscribeRequest msg)
+            public string Visit(MarketDataRequest msg)
             {
-                return Subscribe(msg.Product, msg.MarketData);
+                return MarketData(msg.Product, msg.MarketData);
             }
 
             public string Visit(NewFutureRequest msg)
@@ -91,12 +91,12 @@ namespace ExchangeApi.OkCoin
 
             public string Visit(ProductTrades msg)
             {
-                return Subscribe(msg.Product, MarketData.Trades);
+                return MarketData(msg.Product, OkCoin.MarketData.Trades);
             }
 
             public string Visit(ProductDepth msg)
             {
-                return Subscribe(msg.Product, MarketData.Depth60);
+                return MarketData(msg.Product, OkCoin.MarketData.Depth60);
             }
 
             public string Visit(NewOrderResponse msg)

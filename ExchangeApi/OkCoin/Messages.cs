@@ -14,7 +14,7 @@ namespace ExchangeApi.OkCoin
 
     public interface IVisitorOut<T>
     {
-        T Visit(SubscribeRequest msg);
+        T Visit(MarketDataRequest msg);
         T Visit(NewFutureRequest msg);
         T Visit(CancelOrderRequest msg);
     }
@@ -352,7 +352,7 @@ namespace ExchangeApi.OkCoin
         Trades,
     }
 
-    public class SubscribeRequest : Util.Printable<SubscribeRequest>, IMessageOut
+    public class MarketDataRequest : Util.Printable<MarketDataRequest>, IMessageOut
     {
         public Product Product { get; set; }
         public MarketData MarketData { get; set; }

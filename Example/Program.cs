@@ -52,16 +52,16 @@ namespace Example
                 {
                     // Subscribe to depths and trades on BTC/USD spot.
                     ExchangeApi.OkCoin.Product product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot");
-                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
 
                     // Subscribe to depths and trades on BTC/USD future with settlement this week.
                     product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week");
-                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    writer.Send(new ExchangeApi.OkCoin.SubscribeRequest() {
+                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
                 };
                 client.OnMessage += (TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> msg, bool isLast) =>

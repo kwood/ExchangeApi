@@ -20,7 +20,7 @@ namespace ExchangeApi.OkCoin
             _keys = keys;
         }
 
-        public string Visit(SubscribeRequest msg)
+        public string Visit(MarketDataRequest msg)
         {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\"}}",
