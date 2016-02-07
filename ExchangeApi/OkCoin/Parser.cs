@@ -99,12 +99,135 @@ namespace ExchangeApi.OkCoin
             return msg;
         }
 
+        public IMessageIn Visit(MyOrderUpdate msg)
+        {
+            if (_data == null)
+            {
+                // OkCoin sends an empty message without data in response to
+                // our subscription request.
+                return msg;
+            }
+            switch (msg.ProductType)
+            {
+                case ProductType.Future:
+                    msg.Order = ParseFutureState(_data, msg.Currency);
+                    break;
+                case ProductType.Spot:
+                    msg.Order = ParseSpotState(_data, msg.Currency);
+                    break;
+                default:
+                    throw new ArgumentException("Invalid ProductType: " + msg.ProductType);
+            }
+            return msg;
+        }
+
+        static FutureState ParseFutureState(JToken data, Currency currency)
+        {
+            // {
+            //   "amount":"1",
+            //   "contract_id":"20160212034",
+            //   "contract_name":"BTC0212",
+            //   "contract_type":"this_week",
+            //   "create_date":"1454855333918",
+            //   "create_date_str":"2016-02-07 22:28:53",
+            //   "deal_amount":"0",
+            //   "fee":"0",
+            //   "lever_rate":"10",
+            //   "orderid":1502057218,
+            //   "price":"375",
+            //   "price_avg":"0",
+            //   "status":"0",
+            //   "type":"1",
+            //   "unit_amount":"100"
+            // }
+            var res = new FutureState()
+            {
+                Timestamp = Util.Time.FromUnixMillis((long)data["create_date"]),
+                OrderId = (long)data["orderid"],
+                OrderStatus = ParseOrderStatus((int)data["status"]),
+                Product = new Future()
+                {
+                    Currency = currency,
+                    FutureType = ParseFutureType((string)data["contract_type"]),
+                },
+                Amount = new Amount()
+                {
+                    Price = (decimal)data["price"],
+                    Quantity = (decimal)data["amount"],
+                },
+                CumFillQuantity = (decimal)data["deal_amount"],
+                AvgFillPrice = (decimal)data["price_avg"],
+                Fee = (decimal)data["fee"],
+                ContractId = (string)data["contract_id"],
+            };
+
+            // Infer CoinType from "contract_name". E.g., "BTC0212" => CoinType.Btc.
+            string contract = (string)data["contract_name"];
+            Condition.Requires(contract, "contract").IsNotNullOrEmpty();
+            if (contract.StartsWith("BTC")) res.Product.CoinType = CoinType.Btc;
+            else if (contract.StartsWith("LTC")) res.Product.CoinType = CoinType.Ltc;
+            else throw new ArgumentException("Unknown value of `contract_name`: " + contract);
+
+            // Decompose "type" into Side and PositionType.
+            int type = (int)data["type"];
+            switch (type)
+            {
+                case 1:
+                    res.Amount.Side = Side.Buy;
+                    res.PositionType = PositionType.Long;
+                    break;
+                case 2:
+                    res.Amount.Side = Side.Buy;
+                    res.PositionType = PositionType.Short;
+                    break;
+                case 3:
+                    res.Amount.Side = Side.Sell;
+                    res.PositionType = PositionType.Long;
+                    break;
+                case 4:
+                    res.Amount.Side = Side.Sell;
+                    res.PositionType = PositionType.Short;
+                    break;
+                default:
+                    throw new ArgumentException("Unknown `type`: " + type);
+            }
+            return res;
+        }
+
+        static SpotState ParseSpotState(JToken data, Currency currency)
+        {
+            // TODO: implement me.
+            return null;
+        }
+
         static Side ParseSide(string side)
         {
             Condition.Requires(side, "side").IsNotNull();
             if (side == "bid") return Side.Buy;
             if (side == "ask") return Side.Sell;
             throw new ArgumentException("Unknown value of `side`: " + side);
+        }
+
+        static FutureType ParseFutureType(string futureType)
+        {
+            Condition.Requires(futureType, "futureType").IsNotNull();
+            if (futureType == "this_week") return FutureType.ThisWeek;
+            if (futureType == "next_week") return FutureType.NextWeek;
+            if (futureType == "quarter") return FutureType.Quarter;
+            throw new ArgumentException("Unknown value of `futureType`: " + futureType);
+        }
+
+        static OrderStatus ParseOrderStatus(int status)
+        {
+            switch (status)
+            {
+                case -1: return OrderStatus.Cancelled;
+                case 0: return OrderStatus.Unfilled;
+                case 1: return OrderStatus.PartiallyFilled;
+                case 2: return OrderStatus.FullyFilled;
+                case 3: return OrderStatus.Cancelling;
+                default: throw new ArgumentException("Unknown value of `status`: " + status);
+            }
         }
     }
 
@@ -134,6 +257,8 @@ namespace ExchangeApi.OkCoin
                                       () => new NewOrderResponse() { ProductType = product, Currency = currency });
                     _messageCtors.Add(Channels.CancelOrder(product, currency),
                                       () => new CancelOrderResponse() { ProductType = product, Currency = currency });
+                    _messageCtors.Add(Channels.MyOrders(product, currency),
+                                      () => new MyOrderUpdate() { ProductType = product, Currency = currency });
                 }
                 foreach (var coin in Util.Enum.Values<CoinType>())
                 {

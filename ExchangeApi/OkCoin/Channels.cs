@@ -123,6 +123,11 @@ namespace ExchangeApi.OkCoin
             {
                 return CancelOrder(msg.ProductType, msg.Currency);
             }
+
+            public string Visit(MyOrderUpdate msg)
+            {
+                return MyOrders(msg.ProductType, msg.Currency);
+            }
         }
     }
 }

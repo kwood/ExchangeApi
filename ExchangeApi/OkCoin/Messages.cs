@@ -32,6 +32,7 @@ namespace ExchangeApi.OkCoin
         T Visit(ProductTrades msg);
         T Visit(NewOrderResponse msg);
         T Visit(CancelOrderResponse msg);
+        T Visit(MyOrderUpdate msg);
     }
 
     public enum Currency
@@ -249,21 +250,55 @@ namespace ExchangeApi.OkCoin
     public enum OrderStatus
     {
         Cancelled = -1,
-        Pending = 0,
+        Unfilled = 0,
         PartiallyFilled = 1,
         FullyFilled = 2,
         Cancelling = 3,
     }
 
-    public class Fill : Util.Printable<Fill>
+    public interface OrderState
     {
-        public long FillId { get; set; }
+        // When order state changes as a result of a fill, Timestamp is truncated to seconds.
+        // Otherwise it's truncated to milliseconds.
+        DateTime Timestamp { get; set; }
+        long OrderId { get; set; }
+        OrderStatus OrderStatus { get; set; }
+        Product Product { get; set; }
+        Amount Amount { get; set; }
+        decimal CumFillQuantity { get; set; }
+        decimal AvgFillPrice { get; set; }
+    }
+
+    public class SpotState : Util.Printable<SpotState>, OrderState
+    {
+        public DateTime Timestamp { get; set; }
         public long OrderId { get; set; }
+        public OrderStatus OrderStatus { get; set; }
         public Product Product { get; set; }
         public Amount Amount { get; set; }
-        public decimal LeftQuantity { get; set; }
+        public decimal CumFillQuantity { get; set; }
+        public decimal AvgFillPrice { get; set; }
+
+        // Available only for spots.
+        public decimal FillQuantity { get; set; }
+        public decimal FillPrice { get; set; }
+    }
+
+    public class FutureState : Util.Printable<FutureState>, OrderState
+    {
         public DateTime Timestamp { get; set; }
+        public long OrderId { get; set; }
         public OrderStatus OrderStatus { get; set; }
+        public Product Product { get; set; }
+        public Amount Amount { get; set; }
+        public decimal CumFillQuantity { get; set; }
+        public decimal AvgFillPrice { get; set; }
+
+        // Available only for futures.
+        public PositionType PositionType { get; set; }
+        public decimal Fee { get; set; }
+        // Example: "20160212034" (settlement on 2016-02-12).
+        public string ContractId { get; set; }
     }
 
     public enum OrderType
@@ -370,6 +405,25 @@ namespace ExchangeApi.OkCoin
         public Currency Currency { get; set; }
 
         public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class MyOrderUpdate : Util.Printable<MyOrderUpdate>, IMessageIn
+    {
+        public ErrorCode? Error { get; set; }
+
+        // Can be null. OkCoin sends us an empty response to confirm our subscription.
+        public OrderState Order { get; set; }
+
+        // These two fields are a little awkward. If Order is not null, then the same
+        // data can be found inside of it. If Order is null, these fields are the only
+        // means for identifying the channel.
+        public ProductType ProductType { get; set; }
+        public Currency Currency { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }

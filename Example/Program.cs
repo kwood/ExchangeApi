@@ -50,6 +50,11 @@ namespace Example
                 client.OnConnection += (IReader<ExchangeApi.OkCoin.IMessageIn> reader,
                                         IWriter<ExchangeApi.OkCoin.IMessageOut> writer) =>
                 {
+                    // Subscribe to updates on my orders.
+                    writer.Send(new ExchangeApi.OkCoin.MyOrdersRequest() {
+                        ProductType = ExchangeApi.OkCoin.ProductType.Future,
+                        Currency = ExchangeApi.OkCoin.Currency.Usd });
+
                     // Subscribe to depths and trades on BTC/USD spot.
                     ExchangeApi.OkCoin.Product product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot");
                     writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
@@ -66,7 +71,7 @@ namespace Example
                 };
                 client.OnMessage += (TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> msg, bool isLast) =>
                 {
-                    _log.Info("OnMessage(IsLast={0}): ({1}) {2}", isLast, msg.GetType(), msg);
+                    _log.Info("OnMessage(IsLast={0}): ({1}) {2}", isLast, msg.Value.GetType(), msg.Value);
                 };
                 client.Connect();
                 using (var writer = client.Lock())
@@ -76,8 +81,8 @@ namespace Example
                         Amount = new ExchangeApi.OkCoin.Amount()
                         {
                             Side = ExchangeApi.OkCoin.Side.Buy,
-                            Price = 370m,
-                            Quantity = 1m,
+                            Price = 370.15m,
+                            Quantity = 2m,
                         },
                         CoinType = ExchangeApi.OkCoin.CoinType.Btc,
                         Currency = ExchangeApi.OkCoin.Currency.Usd,
@@ -86,8 +91,6 @@ namespace Example
                         OrderType = ExchangeApi.OkCoin.OrderType.Limit,
                         PositionType = ExchangeApi.OkCoin.PositionType.Long,
                     };
-                    // Successful response: [{"channel":"ok_futuresusd_trade","data":{"order_id":"1476459990","result":"true"}}].
-                    // Unsuccessful response: [{"channel":"ok_futuresusd_trade","errorcode":"20024","success":"false"}]
                     writer.Send(req);
                 }
                 Thread.Sleep(3000);
