@@ -7,13 +7,6 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.OkCoin
 {
-    // TODO: add the following read-only property to IMessageIn and IMessageOut:
-    //
-    //   string Channel { get; }
-    //
-    // It should return the external channel name used by the message. It can be used
-    // by the user to avoid having concurrent messages sent to the same channel.
-
     public interface IMessageOut
     {
         T Visit<T>(IVisitorOut<T> v);

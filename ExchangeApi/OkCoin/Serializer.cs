@@ -24,7 +24,7 @@ namespace ExchangeApi.OkCoin
         {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\"}}",
-                                 Serialization.SubscribeChannel(msg.Product, msg.MarketData));
+                                 Channels.FromMessage(msg));
         }
 
         public string Visit(NewFutureRequest msg)
@@ -50,7 +50,7 @@ namespace ExchangeApi.OkCoin
 
             string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
-                                 Serialization.NewOrderChannel(ProductType.Future, msg.Currency), parameters);
+                                 Channels.FromMessage(msg), parameters);
         }
 
         public string Visit(CancelOrderRequest msg)
@@ -70,7 +70,7 @@ namespace ExchangeApi.OkCoin
             // TODO: refactor Visit(NewFutureRequest) and Visit(CancelOrderRequest).
             string parameters = String.Join(",", param.Select(kv => String.Format("\"{0}\":\"{1}\"", kv.Key, kv.Value)));
             return String.Format("{{\"event\":\"addChannel\",\"channel\":\"{0}\",\"parameters\":{{{1}}}}}",
-                                 Serialization.CancelOrderChannel(ProductType.Future, msg.Product.Currency), parameters);
+                                 Channels.FromMessage(msg), parameters);
         }
     }
 }

@@ -118,18 +118,18 @@ namespace ExchangeApi.OkCoin
         {
             Action<Product> Subscribe = (Product product) =>
             {
-                _messageCtors.Add(Serialization.SubscribeChannel(product, MarketData.Depth60),
+                _messageCtors.Add(Channels.Subscribe(product, MarketData.Depth60),
                                   () => new ProductDepth() { Product = product });
-                _messageCtors.Add(Serialization.SubscribeChannel(product, MarketData.Trades),
+                _messageCtors.Add(Channels.Subscribe(product, MarketData.Trades),
                                   () => new ProductTrades() { Product = product });
             };
             foreach (var currency in Util.Enum.Values<Currency>())
             {
                 foreach (var product in Util.Enum.Values<ProductType>())
                 {
-                    _messageCtors.Add(Serialization.NewOrderChannel(product, currency),
+                    _messageCtors.Add(Channels.NewOrder(product, currency),
                                       () => new NewOrderResponse() { ProductType = product, Currency = currency });
-                    _messageCtors.Add(Serialization.CancelOrderChannel(product, currency),
+                    _messageCtors.Add(Channels.CancelOrder(product, currency),
                                       () => new CancelOrderResponse() { ProductType = product, Currency = currency });
                 }
                 foreach (var coin in Util.Enum.Values<CoinType>())
