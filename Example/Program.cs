@@ -50,23 +50,44 @@ namespace Example
                 client.OnConnection += (IReader<ExchangeApi.OkCoin.IMessageIn> reader,
                                         IWriter<ExchangeApi.OkCoin.IMessageOut> writer) =>
                 {
+                    Action<ExchangeApi.OkCoin.IMessageOut> Send = (req) =>
+                    {
+                        writer.Send(req);
+                        string channel = ExchangeApi.OkCoin.Channels.FromMessage(req);
+                        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+                        while (true)
+                        {
+                            TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> resp;
+                            if (!reader.PeekWithTimeout(DateTime.UtcNow - deadline, out resp))
+                                throw new Exception("Timeout out waiting for response");
+                            if (channel == ExchangeApi.OkCoin.Channels.FromMessage(resp.Value))
+                            {
+                                if (resp.Value.Error.HasValue)
+                                    throw new Exception("Exchange returned error while we were establishing connection");
+                                reader.Consume();
+                                break;
+                            }
+                            reader.Skip();
+                        }
+                    };
+
                     // Subscribe to updates on my orders.
-                    writer.Send(new ExchangeApi.OkCoin.MyOrdersRequest() {
+                    Send(new ExchangeApi.OkCoin.MyOrdersRequest() {
                         ProductType = ExchangeApi.OkCoin.ProductType.Future,
                         Currency = ExchangeApi.OkCoin.Currency.Usd });
 
                     // Subscribe to depths and trades on BTC/USD spot.
                     ExchangeApi.OkCoin.Product product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot");
-                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
+                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
+                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
 
                     // Subscribe to depths and trades on BTC/USD future with settlement this week.
                     product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week");
-                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
+                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    writer.Send(new ExchangeApi.OkCoin.MarketDataRequest() {
+                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
                         Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
                 };
                 client.OnMessage += (TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> msg, bool isLast) =>
