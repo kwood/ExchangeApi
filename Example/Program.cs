@@ -91,7 +91,7 @@ namespace Example
                             Price = 370.15m,
                             Quantity = 2m,
                         },
-                        Product = (ExchangeApi.OkCoin.Future)ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
+                        Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
                         Leverage = ExchangeApi.OkCoin.Leverage.x10,
                         OrderType = ExchangeApi.OkCoin.OrderType.Limit,
                         PositionType = ExchangeApi.OkCoin.PositionType.Long,

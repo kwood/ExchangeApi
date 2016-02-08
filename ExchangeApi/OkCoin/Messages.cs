@@ -163,6 +163,11 @@ namespace ExchangeApi.OkCoin
             return (Product)MemberwiseClone();
         }
 
+        public static Future FromInstrument(string instrument)
+        {
+            return (Future)OkCoin.Instrument.Parse(instrument);
+        }
+
         static string PrintEnum<E>(E e)
         {
             return Util.Strings.CamelCaseToUnderscores(e.ToString()).ToLower();
@@ -189,6 +194,11 @@ namespace ExchangeApi.OkCoin
         {
             // All fields are value types. MemberwiseClone() works fine.
             return (Product)MemberwiseClone();
+        }
+
+        public static Future FromInstrument(string instrument)
+        {
+            return (Future)OkCoin.Instrument.Parse(instrument);
         }
 
         static string PrintEnum<E>(E e)
