@@ -77,6 +77,10 @@ namespace ExchangeApi.OkCoin
                                        msg.GetType(), msg);
                             return true;
                         }
+                        if (!_inflight.ContainsKey(channel) || !Object.ReferenceEquals(_inflight[channel], cb))
+                        {
+                            _log.Fatal("Broken invariant. Channel: {0}.", channel);
+                        }
                         _log.Info("Not connected. Can't send message: ({0}) {1}", msg.GetType(), msg);
                         _inflight.Remove(channel);
                         cb.Done = null;
@@ -96,6 +100,10 @@ namespace ExchangeApi.OkCoin
                         // fact that we got an IO error on our end. This is extremely unlikely but
                         // theoretically possible.
                         if (cb.Done == null) return true;
+                        if (!_inflight.ContainsKey(channel) || !Object.ReferenceEquals(_inflight[channel], cb))
+                        {
+                            _log.Fatal("Broken invariant. Channel: {0}.", channel);
+                        }
                         _log.Warn(e, "Error while sending message: ({0}) {1}", msg.GetType(), msg);
                         _inflight.Remove(channel);
                         cb.Done = null;
@@ -108,9 +116,10 @@ namespace ExchangeApi.OkCoin
             return true;
         }
 
+        // Asynchronous. Callbacks may still fire after Dispose() returns.
         public void Dispose()
         {
-            OnDisconnected();
+            TimeoutEverything();
         }
 
         void TimeoutEverything()
@@ -128,6 +137,7 @@ namespace ExchangeApi.OkCoin
 
         void OnDisconnected()
         {
+            // We lost connection to the exchange. Replies to the inflight requests won't come.
             TimeoutEverything();
         }
 
