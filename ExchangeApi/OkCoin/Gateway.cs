@@ -151,10 +151,7 @@ namespace ExchangeApi.OkCoin
                 Callback cb;
                 if (!_inflight.TryGetValue(channel, out cb))
                 {
-                    // This happens when we receive a reply after we already declared the request
-                    // timed out. It should happen extremely rarely because we reconnect when requests time out.
-                    _log.Warn("Received unexpected reply on channel {0}: ({1}) {2}",
-                               channel, msg.Value.GetType(), msg.Value);
+                    // Not the kind of request that we care about (e.g., market data).
                     return;
                 }
                 _inflight.Remove(channel);

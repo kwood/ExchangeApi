@@ -137,6 +137,9 @@ namespace ExchangeApi.OkCoin
         // Instrument.Parse() does the reverse transformation.
         // For any well formed string s: Instrument.Parse(s).Instrument == s.
         string Instrument { get; }
+
+        // Deep clone.
+        Product Clone();
     }
 
     public class Spot : Util.Printable<Spot>, Product
@@ -152,6 +155,12 @@ namespace ExchangeApi.OkCoin
             {
                 return String.Format("{0}_{1}_spot", PrintEnum(CoinType), PrintEnum(Currency));
             }
+        }
+
+        public Product Clone()
+        {
+            // All fields are value types. MemberwiseClone() works fine.
+            return (Product)MemberwiseClone();
         }
 
         static string PrintEnum<E>(E e)
@@ -174,6 +183,12 @@ namespace ExchangeApi.OkCoin
             {
                 return String.Format("{0}_{1}_{2}", PrintEnum(CoinType), PrintEnum(Currency), PrintEnum(FutureType));
             }
+        }
+
+        public Product Clone()
+        {
+            // All fields are value types. MemberwiseClone() works fine.
+            return (Product)MemberwiseClone();
         }
 
         static string PrintEnum<E>(E e)
@@ -309,8 +324,7 @@ namespace ExchangeApi.OkCoin
 
     public class NewSpotRequest : Util.Printable<NewSpotRequest>
     {
-        public CoinType CoinType { get; set; }
-        public Currency Currency { get; set; }
+        public Spot Product { get; set; }
         public OrderType OrderType { get; set; }
         public Amount Amount { get; set; }
     }
@@ -329,10 +343,8 @@ namespace ExchangeApi.OkCoin
 
     public class NewFutureRequest : Util.Printable<NewFutureRequest>, IMessageOut
     {
-        public CoinType CoinType { get; set; }
-        public Currency Currency { get; set; }
+        public Future Product { get; set; }
         public OrderType OrderType { get; set; }
-        public FutureType FutureType { get; set; }
         public Amount Amount { get; set; }
         public PositionType PositionType { get; set; }
         public Leverage Leverage { get; set; }

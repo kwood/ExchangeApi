@@ -77,7 +77,7 @@
     <Compile Include="OkCoin\Client.cs" />
     <Compile Include="OkCoin\Codec.cs" />
     <Compile Include="DurableConnection.cs" />
-    <Compile Include="Util\Append.cs" />
+    <Compile Include="Util\Enumerable.cs" />
     <Compile Include="Util\Enum.cs" />
     <Compile Include="Util\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />

@@ -39,5 +39,10 @@ namespace ExchangeApi.Util
         {
             return new Appended<T>(seq, last);
         }
+
+        public static HashSet<T> ToHashSet<T>(this IEnumerable<T> seq)
+        {
+            return new HashSet<T>(seq);
+        }
     }
 }

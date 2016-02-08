@@ -40,63 +40,49 @@ namespace Example
 
         static void StructuredConnection()
         {
-            var keys = new ExchangeApi.OkCoin.Keys()
+            var cfg = new ExchangeApi.OkCoin.Config()
             {
-                ApiKey = "MY_API_KEY",
-                SecretKey = "MY_SECRET_KEY",
+                Endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom,
+                Keys = new ExchangeApi.OkCoin.Keys()
+                {
+                    ApiKey = "MY_API_KEY",
+                    SecretKey = "MY_SECRET_KEY",
+                },
+                Products = new List<ExchangeApi.OkCoin.Product>()
+                {
+                    ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
+                },
+                EnableMarketData = false,
+                EnableTrading = true,
             };
-            using (var client = new ExchangeApi.OkCoin.Client(ExchangeApi.OkCoin.Instance.OkCoinCom, keys))
+            using (var client = new ExchangeApi.OkCoin.Client(cfg))
             {
-                client.OnConnection += (IReader<ExchangeApi.OkCoin.IMessageIn> reader,
-                                        IWriter<ExchangeApi.OkCoin.IMessageOut> writer) =>
+                client.OnProductDepth += (TimestampedMsg<ExchangeApi.OkCoin.ProductDepth> msg, bool isLast) =>
                 {
-                    Action<ExchangeApi.OkCoin.IMessageOut> Send = (req) =>
-                    {
-                        writer.Send(req);
-                        string channel = ExchangeApi.OkCoin.Channels.FromMessage(req);
-                        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-                        while (true)
-                        {
-                            TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> resp;
-                            if (!reader.PeekWithTimeout(DateTime.UtcNow - deadline, out resp))
-                                throw new Exception("Timeout out waiting for response");
-                            if (channel == ExchangeApi.OkCoin.Channels.FromMessage(resp.Value))
-                            {
-                                if (resp.Value.Error.HasValue)
-                                    throw new Exception("Exchange returned error while we were establishing connection");
-                                reader.Consume();
-                                break;
-                            }
-                            reader.Skip();
-                        }
-                    };
-
-                    // Subscribe to updates on my orders.
-                    Send(new ExchangeApi.OkCoin.MyOrdersRequest() {
-                        ProductType = ExchangeApi.OkCoin.ProductType.Future,
-                        Currency = ExchangeApi.OkCoin.Currency.Usd });
-
-                    // Subscribe to depths and trades on BTC/USD spot.
-                    ExchangeApi.OkCoin.Product product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot");
-                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
-                        Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
-                        Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
-
-                    // Subscribe to depths and trades on BTC/USD future with settlement this week.
-                    product = ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week");
-                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
-                        Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Depth60 });
-                    Send(new ExchangeApi.OkCoin.MarketDataRequest() {
-                        Product = product, MarketData = ExchangeApi.OkCoin.MarketData.Trades });
+                    _log.Info("OnProductDepth(IsLast={0}): {1}", isLast, msg.Value);
                 };
-                client.OnMessage += (TimestampedMsg<ExchangeApi.OkCoin.IMessageIn> msg, bool isLast) =>
+                client.OnProductTrades += (TimestampedMsg<ExchangeApi.OkCoin.ProductTrades> msg, bool isLast) =>
                 {
-                    _log.Info("OnMessage(IsLast={0}): ({1}) {2}", isLast, msg.Value.GetType(), msg.Value);
+                    _log.Info("OnProductTrades(IsLast={0}): {1}", isLast, msg.Value);
+                };
+                client.OnOrderUpdate += (TimestampedMsg<ExchangeApi.OkCoin.MyOrderUpdate> msg, bool isLast) =>
+                {
+                    _log.Info("OnOrderUpdate(IsLast={0}): {1}", isLast, msg.Value);
+                };
+                Action<TimestampedMsg<ExchangeApi.OkCoin.NewOrderResponse>, bool> OnNewOrder = (msg, isLast) =>
+                {
+                    // Null msg means timeout.
+                    _log.Info("OnNewOrder(IsLast={0}): {1}", isLast, msg?.Value);
+                };
+                Action<TimestampedMsg<ExchangeApi.OkCoin.CancelOrderResponse>, bool> OnCancelOrder = (msg, isLast) =>
+                {
+                    // Null msg means timeout.
+                    _log.Info("OnCancelOrder(IsLast={0}): {1}", isLast, msg?.Value);
                 };
                 client.Connect();
-                using (var writer = client.Lock())
+                while (true)
                 {
+                    Thread.Sleep(1000);
                     var req = new ExchangeApi.OkCoin.NewFutureRequest()
                     {
                         Amount = new ExchangeApi.OkCoin.Amount()
@@ -105,16 +91,14 @@ namespace Example
                             Price = 370.15m,
                             Quantity = 2m,
                         },
-                        CoinType = ExchangeApi.OkCoin.CoinType.Btc,
-                        Currency = ExchangeApi.OkCoin.Currency.Usd,
-                        FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
+                        Product = (ExchangeApi.OkCoin.Future)ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
                         Leverage = ExchangeApi.OkCoin.Leverage.x10,
                         OrderType = ExchangeApi.OkCoin.OrderType.Limit,
                         PositionType = ExchangeApi.OkCoin.PositionType.Long,
                     };
-                    writer.Send(req);
+                    if (client.Send(req, OnNewOrder)) break;
                 }
-                Thread.Sleep(3000);
+                Thread.Sleep(5000);
             }
             Thread.Sleep(2000);
         }
@@ -129,32 +113,6 @@ namespace Example
             }
         }
 
-        static void OkCoinSerializer()
-        {
-            var keys = new ExchangeApi.OkCoin.Keys()
-            {
-                ApiKey = "MY_API_KEY",
-                SecretKey = "MY_SECRET_KEY",
-            };
-            var serializer = new ExchangeApi.OkCoin.Serializer(keys);
-            var req = new ExchangeApi.OkCoin.NewFutureRequest()
-            {
-                Amount = new ExchangeApi.OkCoin.Amount()
-                {
-                    Side = ExchangeApi.OkCoin.Side.Buy,
-                    Price = 12.34m,
-                    Quantity = 56.78m,
-                },
-                CoinType = ExchangeApi.OkCoin.CoinType.Btc,
-                Currency = ExchangeApi.OkCoin.Currency.Usd,
-                FutureType = ExchangeApi.OkCoin.FutureType.ThisWeek,
-                Leverage = ExchangeApi.OkCoin.Leverage.x10,
-                OrderType = ExchangeApi.OkCoin.OrderType.Limit,
-                PositionType = ExchangeApi.OkCoin.PositionType.Long,
-            };
-            Console.WriteLine(serializer.Visit(req));
-        }
-
         static void Main(string[] args)
         {
             try
@@ -162,7 +120,6 @@ namespace Example
                 // RawConnection();
                 StructuredConnection();
                 // CoinbaseRest();
-                // OkCoinSerializer();
             }
             catch (Exception e)
             {

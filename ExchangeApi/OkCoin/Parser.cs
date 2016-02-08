@@ -245,9 +245,9 @@ namespace ExchangeApi.OkCoin
             Action<Product> Subscribe = (Product product) =>
             {
                 _messageCtors.Add(Channels.MarketData(product, MarketData.Depth60),
-                                  () => new ProductDepth() { Product = product });
+                                  () => new ProductDepth() { Product = product.Clone() });
                 _messageCtors.Add(Channels.MarketData(product, MarketData.Trades),
-                                  () => new ProductTrades() { Product = product });
+                                  () => new ProductTrades() { Product = product.Clone() });
             };
             foreach (var currency in Util.Enum.Values<Currency>())
             {

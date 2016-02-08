@@ -35,11 +35,11 @@ namespace ExchangeApi.OkCoin
         {
             IEnumerable<KV> param = new KV[]
             {
-                new KV("contract_type", Serialization.AsString(msg.FutureType)),
+                new KV("contract_type", Serialization.AsString(msg.Product.FutureType)),
                 new KV("amount", Serialization.AsString(msg.Amount.Quantity)),
                 new KV("type", Serialization.AsString(msg.Amount.Side, msg.PositionType)),
                 new KV("lever_rate", Serialization.AsString(msg.Leverage)),
-                new KV("symbol", Serialization.AsString(msg.CoinType, msg.Currency)),
+                new KV("symbol", Serialization.AsString(msg.Product.CoinType, msg.Product.Currency)),
             };
             if (msg.OrderType == OrderType.Limit)
             {

@@ -94,7 +94,7 @@ namespace ExchangeApi.OkCoin
 
             public string Visit(NewFutureRequest msg)
             {
-                return NewOrder(ProductType.Future, msg.Currency);
+                return NewOrder(ProductType.Future, msg.Product.Currency);
             }
 
             public string Visit(CancelOrderRequest msg)
