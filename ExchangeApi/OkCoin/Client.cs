@@ -133,7 +133,7 @@ namespace ExchangeApi.OkCoin
             msg.Value.Visit(new MessageHandler(this, msg.Received, isLast));
         }
 
-        void Subscribe(IReader<IMessageIn> reader, IWriter<IMessageOut> writer, IMessageOut req)
+        void Subscribe(IReader<IMessageIn> reader, IWriter<IMessageOut> writer, IMessageOut req, bool consumeFirst)
         {
             writer.Send(req);
             string channel = Channels.FromMessage(req);
@@ -154,7 +154,7 @@ namespace ExchangeApi.OkCoin
                             "Exchange returned error to our subscription request. Request: ({0}) {1}. Response: ({2}) {3}",
                             req.GetType(), req, resp.Value.GetType(), resp.Value));
                     }
-                    reader.Consume();
+                    if (consumeFirst) reader.Consume();
                     break;
                 }
                 reader.Skip();
@@ -165,12 +165,15 @@ namespace ExchangeApi.OkCoin
         {
             foreach (Product p in _marketDataSubscriptions)
             {
-                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Depth60 });
-                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Trades });
+                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Depth60 },
+                          consumeFirst: false);
+                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Trades },
+                          consumeFirst: true);
             }
             foreach (var p in _tradingSubscriptions)
             {
-                Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 });
+                Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
+                          consumeFirst: true);
             }
         }
 
