@@ -465,6 +465,8 @@ namespace ExchangeApi
             }
             else
             {
+                // If it throws, that's OK. The exception will be caught and logged
+                // by the scheduler.
                 OnMessage?.Invoke(msg, isLast);
             }
         }
