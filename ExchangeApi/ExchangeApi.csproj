@@ -68,6 +68,7 @@
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="OkCoin\Authenticator.cs" />
     <Compile Include="OkCoin\Channels.cs" />
+    <Compile Include="OkCoin\Gateway.cs" />
     <Compile Include="OkCoin\Serialization.cs" />
     <Compile Include="OkCoin\Keys.cs" />
     <Compile Include="Scheduler.cs" />
