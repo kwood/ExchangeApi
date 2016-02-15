@@ -98,9 +98,13 @@ namespace ExchangeApi.OkCoin
         RiskRateBiggerThan90PercentAfterOpeningPosition = 20012,
         TemporallyNoCounterPartyPrice = 20013,
         SystemError2 = 20014,
+        // When you try to cancel a future order that has already been finished
+        // (cancelled or filled), OkCoin replies with this error code.
         OrderDoesNotExist2 = 20015,
         LiquidationQuantityBiggerThanHolding = 20016,
         NotAuthorizedOrIllegalOrderId = 20017,
+        // If you try close a future position while having no open positions,
+        // OkCoin replies with this error code. Must be a bug on their side.
         OrderPriceHigherThan105PercentOrLowerThan95PercentOfThePriceOfLastMinute = 20018,
         IpRestrainedToAccessTheResource = 20019,
         SecretKeyDoesNotExist = 20020,
