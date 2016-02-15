@@ -90,6 +90,9 @@ namespace ExchangeApi.OkCoin
         public event Action<TimestampedMsg<ProductDepth>, bool> OnProductDepth;
         public event Action<TimestampedMsg<ProductTrades>, bool> OnProductTrades;
         public event Action<TimestampedMsg<MyOrderUpdate>, bool> OnOrderUpdate;
+        // When our future order gets filled, OnOrderUpdate triggers first, followed by OnFuturePositionsUpdate.
+        // This isn't documented but seems to be the case in practice.
+        public event Action<TimestampedMsg<FuturePositionsUpdate>, bool> OnFuturePositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread if
         // and only if Send() returns true. Its first argument is null on timeout.
@@ -175,6 +178,10 @@ namespace ExchangeApi.OkCoin
                 Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
                           consumeFirst: true);
             }
+            if (_tradingSubscriptions.Select(p => p.Item1 == ProductType.Future).Any())
+            {
+                Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
+            }
         }
 
         class MessageHandler : IVisitorIn<object>
@@ -207,6 +214,20 @@ namespace ExchangeApi.OkCoin
                 catch (Exception e)
                 {
                     _log.Warn(e, "Ignoring exception from OnOrderUpdate");
+                }
+                return null;
+            }
+
+            public object Visit(FuturePositionsUpdate msg)
+            {
+                try
+                {
+                    _client.OnFuturePositionsUpdate?.Invoke(
+                        new TimestampedMsg<FuturePositionsUpdate>() { Received = _received, Value = msg }, _isLast);
+                }
+                catch (Exception e)
+                {
+                    _log.Warn(e, "Ignoring exception from OnFuturePositionsUpdate");
                 }
                 return null;
             }

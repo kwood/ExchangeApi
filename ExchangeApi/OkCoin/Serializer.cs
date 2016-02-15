@@ -68,6 +68,11 @@ namespace ExchangeApi.OkCoin
             return AuthenticatedRequest(msg, param);
         }
 
+        public string Visit(FuturePositionsRequest msg)
+        {
+            return AuthenticatedRequest(msg, null);
+        }
+
         string UnauthenticatedRequest(IMessageOut msg)
         {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.

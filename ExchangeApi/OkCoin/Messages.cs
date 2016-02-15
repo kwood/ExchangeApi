@@ -18,6 +18,7 @@ namespace ExchangeApi.OkCoin
         T Visit(NewFutureRequest msg);
         T Visit(CancelOrderRequest msg);
         T Visit(MyOrdersRequest msg);
+        T Visit(FuturePositionsRequest msg);
     }
 
     public interface IMessageIn
@@ -33,6 +34,7 @@ namespace ExchangeApi.OkCoin
         T Visit(NewOrderResponse msg);
         T Visit(CancelOrderResponse msg);
         T Visit(MyOrderUpdate msg);
+        T Visit(FuturePositionsUpdate msg);
     }
 
     public enum Currency
@@ -444,6 +446,45 @@ namespace ExchangeApi.OkCoin
         // means for identifying the channel.
         public ProductType ProductType { get; set; }
         public Currency Currency { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class FuturePositionsRequest : Util.Printable<FuturePositionsRequest>, IMessageOut
+    {
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class FuturePosition : Util.Printable<FuturePosition>
+    {
+        public Leverage Leverage { get; set; }
+        public PositionType PositionType { get; set; }
+        // Example: "20160212034" (settlement on 2016-02-12).
+        public string ContractId { get; set; }
+        // How many contracts we own.
+        public decimal Quantity { get; set; }
+        // This is meant to be the average open price but my tests show that
+        // it's slightly off. When I bought one contract for 413.67, AvgPrice
+        // was 413.67, as expected. However, when I bought another contract for 412.64,
+        // AvgPrice became 413.15435805 instead of the expected 413.155.
+        public decimal AvgPrice { get; set; }
+    }
+
+    public class FuturePositionsUpdate : Util.Printable<FuturePositionsUpdate>, IMessageIn
+    {
+        public ErrorCode? Error { get; set; }
+
+        // OkCoin sends us separate notifications for different currency-coin pairs.
+        // When we buy a btc_usd contract, we receive the list of our btc_usd positions.
+        public Currency Currency { get; set; }
+        public CoinType CoinType { get; set; }
+        public List<FuturePosition> Positions { get; set; }
 
         public T Visit<T>(IVisitorIn<T> v)
         {

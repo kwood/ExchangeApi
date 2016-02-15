@@ -121,6 +121,55 @@ namespace ExchangeApi.OkCoin
             return msg;
         }
 
+        public IMessageIn Visit(FuturePositionsUpdate msg)
+        {
+            // "symbol": "btc_usd",
+            // "positions": [
+            //   {
+            //     "contract_id": "20160219013",
+            //     "contract_name": "BTC0219",
+            //     "avgprice": "413.15435805",
+            //     "balance": "0.04855328",
+            //     "bondfreez": "0",
+            //     "costprice": "413.15435805",
+            //     "eveningup": "2",
+            //     "forcedprice": "379.0405725",
+            //     "position": "1",
+            //     "profitreal": "-1.4522E-4",
+            //     "fixmargin": "0.04840806",
+            //     "hold_amount": "2",
+            //     "lever_rate": "10",
+            //     "position_id": "9018065"
+            //   },
+            // ]
+            if (_data == null)
+            {
+                // OkCoin sends an empty message without data in response to
+                // our subscription request.
+                return msg;
+            }
+
+            string symbol = (string)_data["symbol"];
+            string[] parts = symbol.Split(new char[] { '_' }, 2);
+            Condition.Requires(parts, "parts").HasLength(2);
+            msg.CoinType = ParseCoinType(parts[0]);
+            msg.Currency = ParseCurrency(parts[1]);
+
+            msg.Positions = new List<FuturePosition>();
+            foreach (JToken elem in _data["positions"])
+            {
+                msg.Positions.Add(new FuturePosition()
+                {
+                    Leverage = ParseLeverage((string)elem["lever_rate"]),
+                    PositionType = ParsePositionType((string)elem["position"]),
+                    ContractId = (string)elem["contract_id"],
+                    Quantity = (decimal)elem["hold_amount"],
+                    AvgPrice = (decimal)elem["avgprice"],
+                });
+            }
+            return msg;
+        }
+
         static FutureState ParseFutureState(JToken data, Currency currency)
         {
             // {
@@ -229,6 +278,38 @@ namespace ExchangeApi.OkCoin
                 default: throw new ArgumentException("Unknown value of `status`: " + status);
             }
         }
+
+        static Currency ParseCurrency(string currency)
+        {
+            Condition.Requires(currency, "currency").IsNotNull();
+            if (currency == "usd") return Currency.Usd;
+            if (currency == "cny") return Currency.Cny;
+            throw new ArgumentException("Unknown value of `currency`: " + currency);
+        }
+
+        static CoinType ParseCoinType(string coin)
+        {
+            Condition.Requires(coin, "coin").IsNotNull();
+            if (coin == "btc") return CoinType.Btc;
+            if (coin == "ltc") return CoinType.Ltc;
+            throw new ArgumentException("Unknown value of `coin`: " + coin);
+        }
+
+        static Leverage ParseLeverage(string leverage)
+        {
+            Condition.Requires(leverage, "leverage").IsNotNull();
+            if (leverage == "10") return Leverage.x10;
+            if (leverage == "20") return Leverage.x20;
+            throw new ArgumentException("Unknown value of `leverage`: " + leverage);
+        }
+
+        static PositionType ParsePositionType(string position)
+        {
+            Condition.Requires(position, "position").IsNotNull();
+            if (position == "1") return PositionType.Long;
+            if (position == "2") return PositionType.Short;
+            throw new ArgumentException("Unknown value of `position`: " + position);
+        }
     }
 
     public static class ResponseParser
@@ -242,6 +323,7 @@ namespace ExchangeApi.OkCoin
 
         static ResponseParser()
         {
+            _messageCtors.Add(Channels.FuturePositions(), () => new FuturePositionsUpdate() { });
             Action<Product> Subscribe = (Product product) =>
             {
                 _messageCtors.Add(Channels.MarketData(product, MarketData.Depth60),

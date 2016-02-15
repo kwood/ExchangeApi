@@ -68,6 +68,11 @@ namespace ExchangeApi.OkCoin
             return String.Format("ok_{0}{1}_cancel_order", Serialization.AsString(p), Serialization.AsString(c));
         }
 
+        public static string FuturePositions()
+        {
+            return "ok_real_future_positions";
+        }
+
         public static string FromMessage(IMessageIn msg)
         {
             return msg.Visit(new MessageChannel());
@@ -102,6 +107,11 @@ namespace ExchangeApi.OkCoin
                 return CancelOrder(msg.Product.ProductType, msg.Product.Currency);
             }
 
+            public string Visit(FuturePositionsRequest msg)
+            {
+                return FuturePositions();
+            }
+
             // IVisitorIn
 
             public string Visit(ProductTrades msg)
@@ -127,6 +137,11 @@ namespace ExchangeApi.OkCoin
             public string Visit(MyOrderUpdate msg)
             {
                 return MyOrders(msg.ProductType, msg.Currency);
+            }
+
+            public string Visit(FuturePositionsUpdate msg)
+            {
+                return FuturePositions();
             }
         }
     }

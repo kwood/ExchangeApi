@@ -69,6 +69,10 @@ namespace Example
                 {
                     _log.Info("OnOrderUpdate(IsLast={0}): {1}", isLast, msg.Value);
                 };
+                client.OnFuturePositionsUpdate += (TimestampedMsg<ExchangeApi.OkCoin.FuturePositionsUpdate> msg, bool isLast) =>
+                {
+                    _log.Info("OnFuturePositionsUpdate(IsLast={0}): {1}", isLast, msg.Value);
+                };
                 Action<TimestampedMsg<ExchangeApi.OkCoin.NewOrderResponse>, bool> OnNewOrder = (msg, isLast) =>
                 {
                     // Null msg means timeout.
@@ -87,9 +91,9 @@ namespace Example
                     {
                         Amount = new ExchangeApi.OkCoin.Amount()
                         {
-                            Side = ExchangeApi.OkCoin.Side.Buy,
-                            Price = 370.15m,
-                            Quantity = 2m,
+                            Side = ExchangeApi.OkCoin.Side.Sell,
+                            Price = 412.67m,
+                            Quantity = 1m,
                         },
                         Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
                         Leverage = ExchangeApi.OkCoin.Leverage.x10,
