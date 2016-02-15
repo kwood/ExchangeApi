@@ -19,6 +19,7 @@ namespace ExchangeApi.OkCoin
         T Visit(CancelOrderRequest msg);
         T Visit(MyOrdersRequest msg);
         T Visit(FuturePositionsRequest msg);
+        T Visit(PingRequest msg);
     }
 
     public interface IMessageIn
@@ -35,6 +36,7 @@ namespace ExchangeApi.OkCoin
         T Visit(CancelOrderResponse msg);
         T Visit(MyOrderUpdate msg);
         T Visit(FuturePositionsUpdate msg);
+        T Visit(PingResponse msg);
     }
 
     public enum Currency
@@ -489,6 +491,24 @@ namespace ExchangeApi.OkCoin
         public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
         public List<FuturePosition> Positions { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class PingRequest : Util.Printable<PingRequest>, IMessageOut
+    {
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class PingResponse : Util.Printable<PingResponse>, IMessageIn
+    {
+        public ErrorCode? Error { get; set; }
 
         public T Visit<T>(IVisitorIn<T> v)
         {

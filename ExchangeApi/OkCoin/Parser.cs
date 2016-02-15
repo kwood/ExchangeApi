@@ -170,6 +170,11 @@ namespace ExchangeApi.OkCoin
             return msg;
         }
 
+        public IMessageIn Visit(PingResponse msg)
+        {
+            return msg;
+        }
+
         static FutureState ParseFutureState(JToken data, Currency currency)
         {
             // {
@@ -355,15 +360,28 @@ namespace ExchangeApi.OkCoin
 
         public static IEnumerable<IMessageIn> Parse(string serialized)
         {
+            // Ping response:
+            //   {"event":"pong"}
             // Error (subscribing to inexisting channel "bogus"):
             //   [{"channel":"bogus","errorcode":"10015","success":"false"}]
             // Success (trade notification):
             //   [{ "channel":"ok_btcusd_trades_v1","data":[["78270746","431.3","0.01","22:02:41","ask"]]}]
             //
             // There may be more than one object in the list.
-            var array = JArray.Parse(serialized);
-            Condition.Requires(array, "array").IsNotNull();
-            return array.Select(ParseMessage).Where(msg => msg != null).ToArray();
+            var parsed = JToken.Parse(serialized);
+            Condition.Requires(parsed, "parsed").IsNotNull();
+            switch (parsed.Type)
+            {
+                case JTokenType.Array:
+                    return parsed.Select(ParseMessage).Where(msg => msg != null).ToArray();
+                case JTokenType.Object:
+                    Condition.Requires((string)parsed["event"], "event").IsEqualTo("pong");
+                    IMessageIn pong = new PingResponse();
+                    pong.Visit(new MessageParser(null));
+                    return new IMessageIn[] { pong };
+                default:
+                    throw new ArgumentException("Unexpected JSON type: " + parsed.Type);
+            }
         }
 
         static IMessageIn ParseMessage(JToken root)

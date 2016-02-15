@@ -112,6 +112,11 @@ namespace ExchangeApi.OkCoin
                 return FuturePositions();
             }
 
+            public string Visit(PingRequest msg)
+            {
+                return "<SYNTHETIC-PING-CHANNEL>";
+            }
+
             // IVisitorIn
 
             public string Visit(ProductTrades msg)
@@ -142,6 +147,11 @@ namespace ExchangeApi.OkCoin
             public string Visit(FuturePositionsUpdate msg)
             {
                 return FuturePositions();
+            }
+
+            public string Visit(PingResponse msg)
+            {
+                return "<SYNTHETIC-PING-CHANNEL>";
             }
         }
     }

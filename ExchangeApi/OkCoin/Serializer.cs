@@ -73,6 +73,11 @@ namespace ExchangeApi.OkCoin
             return AuthenticatedRequest(msg, null);
         }
 
+        public string Visit(PingRequest msg)
+        {
+            return "{\"event\":\"ping\"}";
+        }
+
         string UnauthenticatedRequest(IMessageOut msg)
         {
             // Example: {"event":"addChannel","channel":"ok_btcusd_future_depth_this_week_60"}.

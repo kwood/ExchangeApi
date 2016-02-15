@@ -182,6 +182,7 @@ namespace ExchangeApi.OkCoin
             {
                 Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
             }
+            Subscribe(reader, writer, new PingRequest(), consumeFirst: true);
         }
 
         class MessageHandler : IVisitorIn<object>
@@ -257,6 +258,11 @@ namespace ExchangeApi.OkCoin
                 {
                     _log.Warn(e, "Ignoring exception from OnProductDepth");
                 }
+                return null;
+            }
+
+            public object Visit(PingResponse msg)
+            {
                 return null;
             }
         }
