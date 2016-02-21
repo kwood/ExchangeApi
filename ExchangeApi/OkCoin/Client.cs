@@ -12,7 +12,7 @@ namespace ExchangeApi.OkCoin
     public class Config
     {
         // URI of the exchange.
-        public string Endpoint = Instance.OkCoinCom;
+        public Instance Endpoint = Instance.OkCoinCom;
         // If null, authenticated requests won't work.
         public Keys Keys = null;
         // The list of products the client is interested in.
@@ -43,12 +43,12 @@ namespace ExchangeApi.OkCoin
         readonly Product[] _marketDataSubscriptions = new Product[0];
         readonly HashSet<Tuple<ProductType, Currency>> _tradingSubscriptions =
             new HashSet<Tuple<ProductType, Currency>>();
-        readonly Gateway _gateway;
+        readonly WebSocket.Gateway _gateway;
         readonly PeriodicAction _pinger;
 
         public Client(Config cfg)
         {
-            Condition.Requires(cfg.Endpoint, "cfg.Endpoint").IsNotNullOrWhiteSpace();
+            Condition.Requires(cfg.Endpoint, "cfg.Endpoint").IsNotNull();
             Condition.Requires(cfg.Products, "cfg.Products").IsNotNull();
             Condition.Requires(cfg.Scheduler, "cfg.Scheduler").IsNotNull();
             if (cfg.Keys != null)
@@ -70,9 +70,9 @@ namespace ExchangeApi.OkCoin
             }
             Keys keys = cfg.Keys ?? new Keys() { ApiKey = "NONE", SecretKey = "NONE" };
             var connector = new CodingConnector<IMessageIn, IMessageOut>(
-                new WebSocket.Connector(cfg.Endpoint), new Codec(keys));
+                new ExchangeApi.WebSocket.Connector(cfg.Endpoint.WebSocket), new WebSocket.Codec(keys));
             _connection = new DurableConnection<IMessageIn, IMessageOut>(connector, cfg.Scheduler);
-            _gateway = new Gateway(_connection);
+            _gateway = new WebSocket.Gateway(_connection);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
             _pinger = new PeriodicAction(cfg.Scheduler, Ping, PingPeriod, PingPeriod);
@@ -100,6 +100,9 @@ namespace ExchangeApi.OkCoin
         public event Action<TimestampedMsg<MyOrderUpdate>, bool> OnOrderUpdate;
         // When our future order gets filled, OnOrderUpdate triggers first, followed by OnFuturePositionsUpdate.
         // This isn't documented but seems to be the case in practice.
+        //
+        // This event may fire even if our possition didn't change. In fact, it fires each time we place an
+        // order.
         public event Action<TimestampedMsg<FuturePositionsUpdate>, bool> OnFuturePositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread if
@@ -147,7 +150,7 @@ namespace ExchangeApi.OkCoin
         void Subscribe(IReader<IMessageIn> reader, IWriter<IMessageOut> writer, IMessageOut req, bool consumeFirst)
         {
             writer.Send(req);
-            string channel = Channels.FromMessage(req);
+            string channel = WebSocket.Channels.FromMessage(req);
             var deadline = DateTime.UtcNow + SubscribeTimeout;
             while (true)
             {
@@ -157,7 +160,7 @@ namespace ExchangeApi.OkCoin
                     throw new Exception(String.Format(
                         "Timed out waiting for response to our subscription request: ({0}) {1}", req.GetType(), req));
                 }
-                if (channel == Channels.FromMessage(resp.Value))
+                if (channel == WebSocket.Channels.FromMessage(resp.Value))
                 {
                     if (resp.Value.Error.HasValue)
                     {

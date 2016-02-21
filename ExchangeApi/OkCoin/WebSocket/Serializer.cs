@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 using KV = System.Collections.Generic.KeyValuePair<string, string>;
 
-namespace ExchangeApi.OkCoin
+namespace ExchangeApi.OkCoin.WebSocket
 {
     public class Serializer : IVisitorOut<string>
     {

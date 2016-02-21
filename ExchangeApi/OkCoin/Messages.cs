@@ -490,6 +490,8 @@ namespace ExchangeApi.OkCoin
         // When we buy a btc_usd contract, we receive the list of our btc_usd positions.
         public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
+        // The triplet {ContractId, PositionType, Leverage} is unique among the elements
+        // of Positions.
         public List<FuturePosition> Positions { get; set; }
 
         public T Visit<T>(IVisitorIn<T> v)

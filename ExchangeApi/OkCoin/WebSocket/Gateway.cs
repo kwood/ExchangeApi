@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExchangeApi.OkCoin
+namespace ExchangeApi.OkCoin.WebSocket
 {
     // Thread-safe.
     class Gateway : IDisposable

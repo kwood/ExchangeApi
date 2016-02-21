@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExchangeApi.OkCoin
+namespace ExchangeApi.OkCoin.WebSocket
 {
     public class MessageParser : IVisitorIn<IMessageIn>
     {
