@@ -38,7 +38,7 @@ namespace Example
             Thread.Sleep(2000);
         }
 
-        static void StructuredConnection()
+        static void OkCoinClient()
         {
             var cfg = new ExchangeApi.OkCoin.Config()
             {
@@ -107,6 +107,22 @@ namespace Example
             Thread.Sleep(2000);
         }
 
+        static void OkCoinRest()
+        {
+            var keys = new ExchangeApi.OkCoin.Keys()
+            {
+                ApiKey = "3fa2daed-8c56-4eba-ba86-061650232fa0",
+                SecretKey = "9343D8C14530A292A5501CD38107E097",
+            };
+            string endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom.REST;
+            using (var client = new ExchangeApi.OkCoin.REST.RestClient(endpoint, keys))
+            {
+                var future = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week");
+                List<ExchangeApi.OkCoin.FuturePosition> pos = client.FuturePosition(future);
+                _log.Info("Positions for {0}: ({1})", future.Instrument, String.Join(", ", pos.Select(p => p.ToString())));
+            }
+        }
+
         static void CoinbaseRest()
         {
             using (var client = new ExchangeApi.Coinbase.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
@@ -122,7 +138,8 @@ namespace Example
             try
             {
                 // RawConnection();
-                StructuredConnection();
+                // OkCoinClient();
+                OkCoinRest();
                 // CoinbaseRest();
             }
             catch (Exception e)
