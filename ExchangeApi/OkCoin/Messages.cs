@@ -66,6 +66,9 @@ namespace ExchangeApi.OkCoin
 
     // Note: the list of errors may not be exhaustive. As a result, an instance
     // of ErrorCode may be equal to an arbitrary integer.
+    //
+    // It's not specifically stated so in the documentation but it's not unlikely
+    // that 1xxxx errors are for spot while 2xxxx are for future API.
     public enum ErrorCode
     {
         // Errors from the exchange.

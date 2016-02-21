@@ -24,8 +24,8 @@ namespace ExchangeApi.OkCoin
         public string REST { get { return _rest; } }
 
         public static Instance OkCoinCom =
-            new Instance("wss://real.okcoin.com:10440/websocket/okcoinapi", "https://www.okcoin.com/api/v1");
+            new Instance("wss://real.okcoin.com:10440/websocket/okcoinapi", "https://www.okcoin.com/api/v1/");
         public static Instance OkCoinCn =
-            new Instance("wss://real.okcoin.cn:10440/websocket/okcoinapi", "https://www.okcoin.cn/api/v1");
+            new Instance("wss://real.okcoin.cn:10440/websocket/okcoinapi", "https://www.okcoin.cn/api/v1/");
     }
 }

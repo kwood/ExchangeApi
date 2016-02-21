@@ -63,7 +63,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                     {
                         Price = (decimal)elem[1],
                         Quantity = (decimal)elem[2],
-                        Side = ParseSide((string)elem[4]),
+                        Side = Serialization.ParseSide((string)elem[4]),
                     }
                 });
             }
@@ -152,16 +152,16 @@ namespace ExchangeApi.OkCoin.WebSocket
             string symbol = (string)_data["symbol"];
             string[] parts = symbol.Split(new char[] { '_' }, 2);
             Condition.Requires(parts, "parts").HasLength(2);
-            msg.CoinType = ParseCoinType(parts[0]);
-            msg.Currency = ParseCurrency(parts[1]);
+            msg.CoinType = Serialization.ParseCoinType(parts[0]);
+            msg.Currency = Serialization.ParseCurrency(parts[1]);
 
             msg.Positions = new List<FuturePosition>();
             foreach (JToken elem in _data["positions"])
             {
                 msg.Positions.Add(new FuturePosition()
                 {
-                    Leverage = ParseLeverage((string)elem["lever_rate"]),
-                    PositionType = ParsePositionType((string)elem["position"]),
+                    Leverage = Serialization.ParseLeverage((string)elem["lever_rate"]),
+                    PositionType = Serialization.ParsePositionType((string)elem["position"]),
                     ContractId = (string)elem["contract_id"],
                     Quantity = (decimal)elem["hold_amount"],
                     AvgPrice = (decimal)elem["avgprice"],
@@ -198,11 +198,11 @@ namespace ExchangeApi.OkCoin.WebSocket
             {
                 Timestamp = Util.Time.FromUnixMillis((long)data["create_date"]),
                 OrderId = (long)data["orderid"],
-                OrderStatus = ParseOrderStatus((int)data["status"]),
+                OrderStatus = Serialization.ParseOrderStatus((int)data["status"]),
                 Product = new Future()
                 {
                     Currency = currency,
-                    FutureType = ParseFutureType((string)data["contract_type"]),
+                    FutureType = Serialization.ParseFutureType((string)data["contract_type"]),
                 },
                 Amount = new Amount()
                 {
@@ -252,68 +252,6 @@ namespace ExchangeApi.OkCoin.WebSocket
         {
             // TODO: implement me.
             return null;
-        }
-
-        static Side ParseSide(string side)
-        {
-            Condition.Requires(side, "side").IsNotNull();
-            if (side == "bid") return Side.Buy;
-            if (side == "ask") return Side.Sell;
-            throw new ArgumentException("Unknown value of `side`: " + side);
-        }
-
-        static FutureType ParseFutureType(string futureType)
-        {
-            Condition.Requires(futureType, "futureType").IsNotNull();
-            if (futureType == "this_week") return FutureType.ThisWeek;
-            if (futureType == "next_week") return FutureType.NextWeek;
-            if (futureType == "quarter") return FutureType.Quarter;
-            throw new ArgumentException("Unknown value of `futureType`: " + futureType);
-        }
-
-        static OrderStatus ParseOrderStatus(int status)
-        {
-            switch (status)
-            {
-                case -1: return OrderStatus.Cancelled;
-                case 0: return OrderStatus.Unfilled;
-                case 1: return OrderStatus.PartiallyFilled;
-                case 2: return OrderStatus.FullyFilled;
-                case 3: return OrderStatus.Cancelling;
-                default: throw new ArgumentException("Unknown value of `status`: " + status);
-            }
-        }
-
-        static Currency ParseCurrency(string currency)
-        {
-            Condition.Requires(currency, "currency").IsNotNull();
-            if (currency == "usd") return Currency.Usd;
-            if (currency == "cny") return Currency.Cny;
-            throw new ArgumentException("Unknown value of `currency`: " + currency);
-        }
-
-        static CoinType ParseCoinType(string coin)
-        {
-            Condition.Requires(coin, "coin").IsNotNull();
-            if (coin == "btc") return CoinType.Btc;
-            if (coin == "ltc") return CoinType.Ltc;
-            throw new ArgumentException("Unknown value of `coin`: " + coin);
-        }
-
-        static Leverage ParseLeverage(string leverage)
-        {
-            Condition.Requires(leverage, "leverage").IsNotNull();
-            if (leverage == "10") return Leverage.x10;
-            if (leverage == "20") return Leverage.x20;
-            throw new ArgumentException("Unknown value of `leverage`: " + leverage);
-        }
-
-        static PositionType ParsePositionType(string position)
-        {
-            Condition.Requires(position, "position").IsNotNull();
-            if (position == "1") return PositionType.Long;
-            if (position == "2") return PositionType.Short;
-            throw new ArgumentException("Unknown value of `position`: " + position);
         }
     }
 
