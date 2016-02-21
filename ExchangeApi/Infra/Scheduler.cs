@@ -30,6 +30,8 @@ namespace ExchangeApi
         // The argument of the action is true if and only if there are no ready
         // actions scheduled after it. In other words, it indicates the last ready
         // action.
+        //
+        // TODO: get rid of the bool parameter. Instead, add bool Scheduler.HasReady().
         public void Schedule(DateTime when, Action<bool> action)
         {
             _actions.Push(action, when);
