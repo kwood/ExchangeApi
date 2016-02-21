@@ -30,14 +30,21 @@ namespace ExchangeApi.OkCoin
     // While at least one event handler is running, no other events may fire.
     public class Client : IDisposable
     {
+        static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
         // Wait at most this long for the first reply when subscribing to a channel.
         static readonly TimeSpan SubscribeTimeout = TimeSpan.FromSeconds(10);
+        // Send pings every this often. If we don't receive anything from the remote side in
+        // 30 seconds, we close the connection and open a new one. Pinging every 10 seconds
+        // works well with that.
+        static readonly TimeSpan PingPeriod = TimeSpan.FromSeconds(10);
 
         readonly DurableConnection<IMessageIn, IMessageOut> _connection;
         readonly Product[] _marketDataSubscriptions = new Product[0];
         readonly HashSet<Tuple<ProductType, Currency>> _tradingSubscriptions =
             new HashSet<Tuple<ProductType, Currency>>();
         readonly Gateway _gateway;
+        readonly PeriodicAction _pinger;
 
         public Client(Config cfg)
         {
@@ -68,6 +75,7 @@ namespace ExchangeApi.OkCoin
             _gateway = new Gateway(_connection);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
+            _pinger = new PeriodicAction(cfg.Scheduler, Ping, PingPeriod, PingPeriod);
         }
 
         // Asynchronous. Events may fire even after Dispose() returns.
@@ -182,7 +190,16 @@ namespace ExchangeApi.OkCoin
             {
                 Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
             }
-            Subscribe(reader, writer, new PingRequest(), consumeFirst: true);
+        }
+
+        void Ping(bool isLast)
+        {
+            using (var writer = _connection.TryLock())
+            {
+                if (writer == null) return;
+                try { writer.Send(new PingRequest()); }
+                catch (Exception e) { _log.Info(e, "Can't send ping. No biggie."); }
+            }
         }
 
         class MessageHandler : IVisitorIn<object>
@@ -263,6 +280,10 @@ namespace ExchangeApi.OkCoin
 
             public object Visit(PingResponse msg)
             {
+                // We send pings every 10 seconds. If we don't receive anything from the remote
+                // side in 30 seconds, we close the connection and open a new one.
+                // We don't do anything special when receiving a pong. Particularly, if the exchange
+                // doesn't send us pongs, that's fine as long as they send us *something*.
                 return null;
             }
         }
