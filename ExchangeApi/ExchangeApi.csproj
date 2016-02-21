@@ -64,6 +64,7 @@
     <Compile Include="Infra\IConnection.cs" />
     <Compile Include="Infra\IConnector.cs" />
     <Compile Include="Infra\MessageQueue.cs" />
+    <Compile Include="Infra\PeriodicAction.cs" />
     <Compile Include="Infra\PriorityQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="OkCoin\Authenticator.cs" />
