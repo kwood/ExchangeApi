@@ -143,6 +143,8 @@ namespace ExchangeApi.OkCoin
         // After T0 is delivered, the following T1 is delivered immediately.
         public event Action<TimestampedMsg<FuturePositionsUpdate>> OnFuturePositionsUpdate;
 
+        // TODO: Add OnSpotPositionsUpdate.
+
         // Action `done` will be called exactly once in the scheduler thread if
         // and only if Send() returns true. Its argument is null on timeout.
         //
@@ -152,6 +154,12 @@ namespace ExchangeApi.OkCoin
         //   * IO error while sending.
         //
         // Send() throws iif req is null. It blocks until the data is sent.
+        public bool Send(NewSpotRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
+        {
+            return _gateway.Send(req, CastCallback(done));
+        }
+
+        // See Send() above.
         public bool Send(NewFutureRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
         {
             return _gateway.Send(req, CastCallback(done));

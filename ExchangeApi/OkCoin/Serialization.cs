@@ -128,7 +128,9 @@ namespace ExchangeApi.OkCoin
                 case 0: return OrderStatus.Unfilled;
                 case 1: return OrderStatus.PartiallyFilled;
                 case 2: return OrderStatus.FullyFilled;
-                case 3: return OrderStatus.Cancelling;
+                case 3:  // For futures.
+                case 4:  // For spots.
+                    return OrderStatus.Cancelling;
                 default: throw new ArgumentException("Unknown value of `status`: " + status);
             }
         }

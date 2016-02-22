@@ -15,6 +15,7 @@ namespace ExchangeApi.OkCoin
     public interface IVisitorOut<T>
     {
         T Visit(MarketDataRequest msg);
+        T Visit(NewSpotRequest msg);
         T Visit(NewFutureRequest msg);
         T Visit(CancelOrderRequest msg);
         T Visit(MyOrdersRequest msg);
@@ -174,9 +175,9 @@ namespace ExchangeApi.OkCoin
             return (Product)MemberwiseClone();
         }
 
-        public static Future FromInstrument(string instrument)
+        public static Spot FromInstrument(string instrument)
         {
-            return (Future)OkCoin.Instrument.Parse(instrument);
+            return (Spot)OkCoin.Instrument.Parse(instrument);
         }
 
         static string PrintEnum<E>(E e)
@@ -343,11 +344,16 @@ namespace ExchangeApi.OkCoin
         Market,
     }
 
-    public class NewSpotRequest : Util.Printable<NewSpotRequest>
+    public class NewSpotRequest : Util.Printable<NewSpotRequest>, IMessageOut
     {
         public Spot Product { get; set; }
         public OrderType OrderType { get; set; }
         public Amount Amount { get; set; }
+
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
     }
 
     public enum PositionType

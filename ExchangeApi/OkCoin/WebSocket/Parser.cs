@@ -250,8 +250,57 @@ namespace ExchangeApi.OkCoin.WebSocket
 
         static SpotState ParseSpotState(JToken data, Currency currency)
         {
-            // TODO: implement me.
-            return null;
+            // {
+            //   "averagePrice": "439.42",
+            //   "completedTradeAmount": "0.01",
+            //   "createdDate": 1456152164000,
+            //   "id": 199990737,
+            //   "orderId": 199990737,
+            //   "sigTradeAmount": "0.01",   // May be missing. Means zero.
+            //   "sigTradePrice": "439.42",  // May be missing. Means zero.
+            //   "status": 2,
+            //   "symbol": "btc_usd",
+            //   "tradeAmount": "0.01",
+            //   "tradePrice": "4.39",
+            //   "tradeType": "buy",
+            //   "tradeUnitPrice": "439.51",
+            //   "unTrade": "0"
+            // }
+            var res = new SpotState()
+            {
+                Timestamp = Util.Time.FromUnixMillis((long)data["createdDate"]),
+                OrderId = (long)data["orderId"],
+                OrderStatus = Serialization.ParseOrderStatus((int)data["status"]),
+                Product = new Spot() { Currency = currency },
+                Amount = new Amount()
+                {
+                    Price = (decimal)data["tradeUnitPrice"],
+                    Quantity = (decimal)data["tradeAmount"],
+                },
+                CumFillQuantity = (decimal)data["completedTradeAmount"],
+                AvgFillPrice = (decimal)data["averagePrice"],
+            };
+
+            // Infer CoinType from "symbol". E.g., "btc_usd" => CoinType.Btc.
+            string symbol = (string)data["symbol"];
+            Condition.Requires(symbol, "symbol").IsNotNullOrEmpty();
+            if (symbol.StartsWith("btc")) res.Product.CoinType = CoinType.Btc;
+            else if (symbol.StartsWith("ltc")) res.Product.CoinType = CoinType.Ltc;
+            else throw new ArgumentException("Unknown value of `symbol`: " + symbol);
+
+            string type = (string)data["tradeType"];
+            Condition.Requires(type, "type").IsNotNullOrEmpty();
+            if (type == "buy" || type == "market_buy") res.Amount.Side = Side.Buy;
+            else if (type == "sell" || type == "market_sell") res.Amount.Side = Side.Sell;
+            else throw new ArgumentException("Unknown value of `type`: " + type);
+
+            // sigTradeAmount and sigTradePrice are optional fields.
+            JToken fillQuantity = data["sigTradeAmount"];
+            if (fillQuantity != null) res.FillQuantity = (decimal)fillQuantity;
+            JToken fillPrice = data["sigTradePrice"];
+            if (fillPrice != null) res.FillPrice = (decimal)fillPrice;
+
+            return res;
         }
     }
 

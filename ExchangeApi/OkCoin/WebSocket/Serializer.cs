@@ -31,6 +31,25 @@ namespace ExchangeApi.OkCoin.WebSocket
             return AuthenticatedRequest(msg, null);
         }
 
+        public string Visit(NewSpotRequest msg)
+        {
+            IEnumerable<KV> param = new KV[]
+            {
+                new KV("amount", Serialization.AsString(msg.Amount.Quantity)),
+                new KV("symbol", Serialization.AsString(msg.Product.CoinType, msg.Product.Currency)),
+            };
+            if (msg.OrderType == OrderType.Limit)
+            {
+                param = param.Append(new KV("price", Serialization.AsString(msg.Amount.Price)))
+                             .Append(new KV("type", msg.Amount.Side == Side.Buy ? "buy" : "sell"));
+            }
+            else
+            {
+                param = param.Append(new KV("type", msg.Amount.Side == Side.Buy ? "market_buy" : "market_sell"));
+            }
+            return AuthenticatedRequest(msg, param);
+        }
+
         public string Visit(NewFutureRequest msg)
         {
             IEnumerable<KV> param = new KV[]

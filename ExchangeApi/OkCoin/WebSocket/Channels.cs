@@ -97,6 +97,11 @@ namespace ExchangeApi.OkCoin.WebSocket
                 return MyOrders(msg.ProductType, msg.Currency);
             }
 
+            public string Visit(NewSpotRequest msg)
+            {
+                return NewOrder(ProductType.Spot, msg.Product.Currency);
+            }
+
             public string Visit(NewFutureRequest msg)
             {
                 return NewOrder(ProductType.Future, msg.Product.Currency);
