@@ -81,6 +81,7 @@ namespace ExchangeApi.OkCoin
         // Asynchronous. Events may fire even after Dispose() returns.
         public void Dispose()
         {
+            _pinger.Dispose();
             _gateway.Dispose();
             _connection.Dispose();
         }
