@@ -12,7 +12,7 @@ namespace ExchangeApi
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         readonly Scheduler _scheduler;
-        readonly Action<bool> _work;
+        readonly Action _work;
         readonly TimeSpan _period;
         DateTime _next;
         volatile bool _disposed = false;
@@ -23,10 +23,10 @@ namespace ExchangeApi
         // If slippage occurs due to a slow run of one of the actions, it's permanent (all future action runs will be
         // delayed).
         //
-        // The action runs on the provided scheduler. The argument of the action is the isLast from the scheduler.
+        // The action runs on the provided scheduler.
         //
         // To stop running the action, call Dispose().
-        public PeriodicAction(Scheduler scheduler, TimeSpan delay, TimeSpan period, Action<bool> work)
+        public PeriodicAction(Scheduler scheduler, TimeSpan delay, TimeSpan period, Action work)
         {
             Condition.Requires(scheduler, "scheduler").IsNotNull();
             Condition.Requires(work, "work").IsNotNull();
@@ -39,10 +39,10 @@ namespace ExchangeApi
             _scheduler.Schedule(_next, DoRun);
         }
 
-        void DoRun(bool isLast)
+        void DoRun()
         {
             if (_disposed) return;
-            try { _work.Invoke(isLast); }
+            try { _work.Invoke(); }
             catch (Exception e) { _log.Warn(e, "Ignoring exception from periodic action"); }
             if (_disposed) return;
             DateTime end = DateTime.UtcNow;

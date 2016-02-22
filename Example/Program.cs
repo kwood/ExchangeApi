@@ -28,9 +28,9 @@ namespace Example
                 {
                     writer.Send(Encode("{ \"type\": \"subscribe\", \"product_id\": \"BTC-USD\" }"));
                 };
-                connection.OnMessage += (TimestampedMsg<ArraySegment<byte>> msg, bool isLast) =>
+                connection.OnMessage += (TimestampedMsg<ArraySegment<byte>> msg) =>
                 {
-                    _log.Info("OnMessage(IsLast={0}): {1} byte(s)", isLast, msg.Value.Count);
+                    _log.Info("OnMessage(IsLast={0}): {1} byte(s)", !connection.Scheduler.HasReady(), msg.Value.Count);
                 };
                 connection.Connect();
                 Thread.Sleep(5000);
@@ -58,31 +58,31 @@ namespace Example
             };
             using (var client = new ExchangeApi.OkCoin.Client(cfg))
             {
-                client.OnProductDepth += (TimestampedMsg<ExchangeApi.OkCoin.ProductDepth> msg, bool isLast) =>
+                client.OnProductDepth += (TimestampedMsg<ExchangeApi.OkCoin.ProductDepth> msg) =>
                 {
-                    _log.Info("OnProductDepth(IsLast={0}): {1}", isLast, msg.Value);
+                    _log.Info("OnProductDepth(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
-                client.OnProductTrades += (TimestampedMsg<ExchangeApi.OkCoin.ProductTrades> msg, bool isLast) =>
+                client.OnProductTrades += (TimestampedMsg<ExchangeApi.OkCoin.ProductTrades> msg) =>
                 {
-                    _log.Info("OnProductTrades(IsLast={0}): {1}", isLast, msg.Value);
+                    _log.Info("OnProductTrades(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
-                client.OnOrderUpdate += (TimestampedMsg<ExchangeApi.OkCoin.MyOrderUpdate> msg, bool isLast) =>
+                client.OnOrderUpdate += (TimestampedMsg<ExchangeApi.OkCoin.MyOrderUpdate> msg) =>
                 {
-                    _log.Info("OnOrderUpdate(IsLast={0}): {1}", isLast, msg.Value);
+                    _log.Info("OnOrderUpdate(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
-                client.OnFuturePositionsUpdate += (TimestampedMsg<ExchangeApi.OkCoin.FuturePositionsUpdate> msg, bool isLast) =>
+                client.OnFuturePositionsUpdate += (TimestampedMsg<ExchangeApi.OkCoin.FuturePositionsUpdate> msg) =>
                 {
-                    _log.Info("OnFuturePositionsUpdate(IsLast={0}): {1}", isLast, msg.Value);
+                    _log.Info("OnFuturePositionsUpdate(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
-                Action<TimestampedMsg<ExchangeApi.OkCoin.NewOrderResponse>, bool> OnNewOrder = (msg, isLast) =>
+                Action<TimestampedMsg<ExchangeApi.OkCoin.NewOrderResponse>> OnNewOrder = msg =>
                 {
                     // Null msg means timeout.
-                    _log.Info("OnNewOrder(IsLast={0}): {1}", isLast, msg?.Value);
+                    _log.Info("OnNewOrder(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg?.Value);
                 };
-                Action<TimestampedMsg<ExchangeApi.OkCoin.CancelOrderResponse>, bool> OnCancelOrder = (msg, isLast) =>
+                Action<TimestampedMsg<ExchangeApi.OkCoin.CancelOrderResponse>> OnCancelOrder = msg =>
                 {
                     // Null msg means timeout.
-                    _log.Info("OnCancelOrder(IsLast={0}): {1}", isLast, msg?.Value);
+                    _log.Info("OnCancelOrder(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg?.Value);
                 };
                 client.Connect();
                 while (true)

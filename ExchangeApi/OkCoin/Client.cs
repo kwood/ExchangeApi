@@ -91,7 +91,7 @@ namespace ExchangeApi.OkCoin
             _positionPoller = new PositionPoller(
                 _cfg.Endpoint.REST, _cfg.Keys, _cfg.Scheduler,
                 _cfg.EnableTrading ? _cfg.Products : new List<Product>());
-            _positionPoller.OnFuturePositions += (msg, isLast) => OnFuturePositionsUpdate?.Invoke(msg, isLast);
+            _positionPoller.OnFuturePositions += msg => OnFuturePositionsUpdate?.Invoke(msg);
         }
 
         // Asynchronous. Events may fire even after Dispose() returns.
@@ -125,10 +125,12 @@ namespace ExchangeApi.OkCoin
         // is trying to talk to the exchange.
         public bool Connected { get { return _connection.Connected; } }
 
+        public Scheduler Scheduler { get { return _cfg.Scheduler; } }
+
         // Messages are never null.
-        public event Action<TimestampedMsg<ProductDepth>, bool> OnProductDepth;
-        public event Action<TimestampedMsg<ProductTrades>, bool> OnProductTrades;
-        public event Action<TimestampedMsg<MyOrderUpdate>, bool> OnOrderUpdate;
+        public event Action<TimestampedMsg<ProductDepth>> OnProductDepth;
+        public event Action<TimestampedMsg<ProductTrades>> OnProductTrades;
+        public event Action<TimestampedMsg<MyOrderUpdate>> OnOrderUpdate;
         // When our future order gets filled, OnOrderUpdate triggers first, followed by OnFuturePositionsUpdate.
         // This isn't documented but seems to be the case in practice.
         //
@@ -139,11 +141,10 @@ namespace ExchangeApi.OkCoin
         // delivered soon afterwards. For example, if the position has changed at times T0, T1, T2, it's
         // possible that OnFuturePositionsUpdate will see the following updates: T1, T0, T1, T2.
         // After T0 is delivered, the following T1 is delivered immediately.
-        public event Action<TimestampedMsg<FuturePositionsUpdate>, bool> OnFuturePositionsUpdate;
+        public event Action<TimestampedMsg<FuturePositionsUpdate>> OnFuturePositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread if
-        // and only if Send() returns true. Its first argument is null on timeout.
-        // The scond argument is `isLast` from Scheduler.
+        // and only if Send() returns true. Its argument is null on timeout.
         //
         // Send() returns false in the following cases:
         //   * We aren't currently connected to the exchange.
@@ -151,36 +152,36 @@ namespace ExchangeApi.OkCoin
         //   * IO error while sending.
         //
         // Send() throws iif req is null. It blocks until the data is sent.
-        public bool Send(NewFutureRequest req, Action<TimestampedMsg<NewOrderResponse>, bool> done)
+        public bool Send(NewFutureRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
         {
             return _gateway.Send(req, CastCallback(done));
         }
 
         // See Send() above.
-        public bool Send(CancelOrderRequest req, Action<TimestampedMsg<CancelOrderResponse>, bool> done)
+        public bool Send(CancelOrderRequest req, Action<TimestampedMsg<CancelOrderResponse>> done)
         {
             return _gateway.Send(req, CastCallback(done));
         }
 
-        Action<TimestampedMsg<IMessageIn>, bool> CastCallback<T>(Action<TimestampedMsg<T>, bool> action)
+        Action<TimestampedMsg<IMessageIn>> CastCallback<T>(Action<TimestampedMsg<T>> action)
         {
-            return (msg, isLast) =>
+            return (msg) =>
             {
                 if (action == null) return;
                 if (msg == null)
                 {
-                    action(null, isLast);
+                    action(null);
                     return;
                 }
-                action(new TimestampedMsg<T>() { Received = msg.Received, Value = (T)msg.Value }, isLast);
+                action(new TimestampedMsg<T>() { Received = msg.Received, Value = (T)msg.Value });
             };
         }
 
-        void OnMessage(TimestampedMsg<IMessageIn> msg, bool isLast)
+        void OnMessage(TimestampedMsg<IMessageIn> msg)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             Condition.Requires(msg.Value, "msg.Value").IsNotNull();
-            msg.Value.Visit(new MessageHandler(this, msg.Received, isLast));
+            msg.Value.Visit(new MessageHandler(this, msg.Received));
         }
 
         void Subscribe(IReader<IMessageIn> reader, IWriter<IMessageOut> writer, IMessageOut req, bool consumeFirst)
@@ -253,7 +254,7 @@ namespace ExchangeApi.OkCoin
             }
         }
 
-        void Ping(bool isLast)
+        void Ping()
         {
             using (var writer = _connection.TryLock())
             {
@@ -269,14 +270,12 @@ namespace ExchangeApi.OkCoin
 
             readonly Client _client;
             readonly DateTime _received;
-            readonly bool _isLast;
 
-            public MessageHandler(Client client, DateTime received, bool isLast)
+            public MessageHandler(Client client, DateTime received)
             {
                 Condition.Requires(client, "client").IsNotNull();
                 _client = client;
                 _received = received;
-                _isLast = isLast;
             }
 
             // These are handled by Gateway.
@@ -288,7 +287,7 @@ namespace ExchangeApi.OkCoin
                 try
                 {
                     _client.OnOrderUpdate?.Invoke(
-                        new TimestampedMsg<MyOrderUpdate>() { Received = _received, Value = msg }, _isLast);
+                        new TimestampedMsg<MyOrderUpdate>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -302,7 +301,7 @@ namespace ExchangeApi.OkCoin
                 try
                 {
                     _client.OnFuturePositionsUpdate?.Invoke(
-                        new TimestampedMsg<FuturePositionsUpdate>() { Received = _received, Value = msg }, _isLast);
+                        new TimestampedMsg<FuturePositionsUpdate>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -316,7 +315,7 @@ namespace ExchangeApi.OkCoin
                 try
                 {
                     _client.OnProductTrades?.Invoke(
-                        new TimestampedMsg<ProductTrades>() { Received = _received, Value = msg }, _isLast);
+                        new TimestampedMsg<ProductTrades>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -330,7 +329,7 @@ namespace ExchangeApi.OkCoin
                 try
                 {
                     _client.OnProductDepth?.Invoke(
-                        new TimestampedMsg<ProductDepth>() { Received = _received, Value = msg }, _isLast);
+                        new TimestampedMsg<ProductDepth>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {

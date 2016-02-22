@@ -16,7 +16,7 @@ namespace ExchangeApi
     {
         private static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
-        readonly ScheduledQueue<Action<bool>> _actions = new ScheduledQueue<Action<bool>>();
+        readonly ScheduledQueue<Action> _actions = new ScheduledQueue<Action>();
         readonly CancellationTokenSource _dispose = new CancellationTokenSource();
         readonly Task _loop;
 
@@ -27,20 +27,22 @@ namespace ExchangeApi
         }
 
         // Schedules the specified action to run at the specified time.
-        // The argument of the action is true if and only if there are no ready
-        // actions scheduled after it. In other words, it indicates the last ready
-        // action.
-        //
-        // TODO: get rid of the bool parameter. Instead, add bool Scheduler.HasReady().
-        public void Schedule(DateTime when, Action<bool> action)
+        public void Schedule(DateTime when, Action action)
         {
             _actions.Push(action, when);
         }
 
         // Schedules the specified action to run ASAP.
-        public void Schedule(Action<bool> action)
+        public void Schedule(Action action)
         {
             Schedule(DateTime.UtcNow, action);
+        }
+
+        // Returns true if there are ready actions in the queue. The action that may currently be
+        // running doesn't count.
+        public bool HasReady()
+        {
+            return _actions.HasReady();
         }
 
         // Blocks until the background thread is stopped.
@@ -56,10 +58,10 @@ namespace ExchangeApi
         {
             while (true)
             {
-                ReadyMessage<Action<bool>> action = await _actions.Next(_dispose.Token);
+                ReadyMessage<Action> action = await _actions.Next(_dispose.Token);
                 try
                 {
-                    action.Message.Invoke(action.Last);
+                    action.Message.Invoke();
                 }
                 catch (Exception e)
                 {

@@ -80,5 +80,13 @@ namespace ExchangeApi
                 await await Task.WhenAny(Task.Delay(delay, cancel), next);
             }
         }
+
+        public bool HasReady()
+        {
+            lock (_monitor)
+            {
+                return _data.Any() && _data.Front().Key <= DateTime.UtcNow;
+            }
+        }
     }
 }

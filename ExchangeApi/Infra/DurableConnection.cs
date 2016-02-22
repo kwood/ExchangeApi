@@ -109,7 +109,7 @@ namespace ExchangeApi
         // If OnConnection event handler throws, events from that connection aren't delivered.
         // Events for which OnConnection called IReader.Consume() are also not delivered (they are deemed
         // consumed by OnConnection).
-        public event Action<TimestampedMsg<In>, bool> OnMessage;
+        public event Action<TimestampedMsg<In>> OnMessage;
 
         // Fires when a connection is lost. The only event that may fire immediately
         // after it is OnConnection. Does NOT fire as a result of OnConnection throwing.
@@ -309,7 +309,7 @@ namespace ExchangeApi
         void ManageConnectionAfter(TimeSpan delay)
         {
             _log.Info("Scheduling connection management in {0}", delay);
-            _scheduler.Schedule(DateTime.UtcNow + delay, isLast => ManageConnection());
+            _scheduler.Schedule(DateTime.UtcNow + delay, ManageConnection);
         }
 
         // Blocks.
@@ -382,7 +382,7 @@ namespace ExchangeApi
                             var connection = _connection;
                             reader.SinkTo((TimestampedMsg<In> msg) =>
                             {
-                                _scheduler.Schedule(isLast => HandleMessage(connection, msg, isLast));
+                                _scheduler.Schedule(() => HandleMessage(connection, msg));
                             });
                         }
                         break;
@@ -449,7 +449,7 @@ namespace ExchangeApi
         }
 
         // Runs in the scheduler thread.
-        void HandleMessage(IConnection<In, Out> connection, TimestampedMsg<In> msg, bool isLast)
+        void HandleMessage(IConnection<In, Out> connection, TimestampedMsg<In> msg)
         {
             // We can read _connection without a lock because we are in the scheduler thread.
             // _connection can't be modified while we are running.
@@ -467,7 +467,7 @@ namespace ExchangeApi
             {
                 // If it throws, that's OK. The exception will be caught and logged
                 // by the scheduler.
-                OnMessage?.Invoke(msg, isLast);
+                OnMessage?.Invoke(msg);
             }
         }
     }

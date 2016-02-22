@@ -14,7 +14,7 @@ namespace ExchangeApi.OkCoin.WebSocket
         class Callback
         {
             // Null iif Done has already been called.
-            public Action<TimestampedMsg<IMessageIn>, bool> Done;
+            public Action<TimestampedMsg<IMessageIn>> Done;
         }
 
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
@@ -41,8 +41,7 @@ namespace ExchangeApi.OkCoin.WebSocket
         }
 
         // Action `done` will be called exactly once in the scheduler thread if
-        // and only if Send() returns true. Its first argument is null on timeout.
-        // The scond argument is `isLast` from Scheduler.
+        // and only if Send() returns true. Its argument is null on timeout.
         //
         // Send() returns false in the following cases:
         //   * We aren't currently connected to the exchange.
@@ -50,7 +49,7 @@ namespace ExchangeApi.OkCoin.WebSocket
         //   * IO error while sending.
         //
         // Send() throws iif any of the arguments are null. It blocks until the data is sent.
-        public bool Send(IMessageOut msg, Action<TimestampedMsg<IMessageIn>, bool> done)
+        public bool Send(IMessageOut msg, Action<TimestampedMsg<IMessageIn>> done)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             Condition.Requires(done, "done").IsNotNull();
@@ -112,7 +111,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                 }
             }
             _connection.Scheduler.Schedule(DateTime.UtcNow + RequestTimeout,
-                                           isLast => MaybeTimeout(channel, cb, isLast));
+                                           () => MaybeTimeout(channel, cb));
             return true;
         }
 
@@ -129,7 +128,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                 // Trigger timeout for all requests ASAP.
                 foreach (var kv in _inflight)
                 {
-                    _connection.Scheduler.Schedule(isLast => MaybeTimeout(kv.Key, kv.Value, isLast));
+                    _connection.Scheduler.Schedule(() => MaybeTimeout(kv.Key, kv.Value));
                 }
                 _inflight.Clear();
             }
@@ -141,11 +140,11 @@ namespace ExchangeApi.OkCoin.WebSocket
             TimeoutEverything();
         }
 
-        void OnMessage(TimestampedMsg<IMessageIn> msg, bool isLast)
+        void OnMessage(TimestampedMsg<IMessageIn> msg)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             string channel = Channels.FromMessage(msg.Value);
-            Action<TimestampedMsg<IMessageIn>, bool> done;
+            Action<TimestampedMsg<IMessageIn>> done;
             lock (_monitor)
             {
                 Callback cb;
@@ -159,15 +158,15 @@ namespace ExchangeApi.OkCoin.WebSocket
                 cb.Done = null;
             }
             Condition.Requires(done, "done").IsNotNull();
-            done.Invoke(msg, isLast);
+            done.Invoke(msg);
         }
 
-        void MaybeTimeout(string channel, Callback cb, bool isLast)
+        void MaybeTimeout(string channel, Callback cb)
         {
             Condition.Requires(channel, "channel").IsNotNull();
             Condition.Requires(cb, "cb").IsNotNull();
 
-            Action<TimestampedMsg<IMessageIn>, bool> done;
+            Action<TimestampedMsg<IMessageIn>> done;
             lock (_monitor)
             {
                 // Happy path: already received a reply.
@@ -189,7 +188,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                 done = cb.Done;
                 cb.Done = null;
             }
-            done.Invoke(null, isLast);
+            done.Invoke(null);
         }
     }
 }

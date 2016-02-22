@@ -41,7 +41,7 @@ namespace ExchangeApi.OkCoin
                     // To reduce downtime we query positions for one product at a time.
                     var delay = PollPeriod.Mul(i + 1).Div(_pollers.Length);
                     // PollOne can throw. That's OK -- PeriodicAction will log it and continue.
-                    _pollers[i] = new PeriodicAction(scheduler, delay, PollPeriod, isLast =>
+                    _pollers[i] = new PeriodicAction(scheduler, delay, PollPeriod, () =>
                     {
                         if (Connected) PollOne(p.Item1, p.Item2);
                     });
@@ -59,7 +59,7 @@ namespace ExchangeApi.OkCoin
 
         // If PollNow() is only ever called from the scheduler thread (this is true for all uses of this
         // class), OnFuturePositions is fired only on the scheduler thread.
-        public event Action<TimestampedMsg<FuturePositionsUpdate>, bool> OnFuturePositions;
+        public event Action<TimestampedMsg<FuturePositionsUpdate>> OnFuturePositions;
 
         public void Connect() { _connected = true; }
         public void Disconnect() { _connected = false; }
@@ -97,8 +97,7 @@ namespace ExchangeApi.OkCoin
                 Received = DateTime.UtcNow,
                 Value = update,
             };
-            // TODO: get rid of the second arg.
-            try { OnFuturePositions?.Invoke(msg, false); }
+            try { OnFuturePositions?.Invoke(msg); }
             catch (Exception e) { _log.Warn(e, "Ignoring exception from OnFuturePositions"); }
         }
     }
