@@ -341,6 +341,8 @@ namespace ExchangeApi.OkCoin
     public enum OrderType
     {
         Limit,
+        // WARNING: Market orders haven't been tested.
+        // You are strongly advised to use only limit orders.
         Market,
     }
 
