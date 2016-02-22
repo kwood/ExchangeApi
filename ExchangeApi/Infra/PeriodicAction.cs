@@ -26,7 +26,7 @@ namespace ExchangeApi
         // The action runs on the provided scheduler. The argument of the action is the isLast from the scheduler.
         //
         // To stop running the action, call Dispose().
-        public PeriodicAction(Scheduler scheduler, Action<bool> work, TimeSpan delay, TimeSpan period)
+        public PeriodicAction(Scheduler scheduler, TimeSpan delay, TimeSpan period, Action<bool> work)
         {
             Condition.Requires(scheduler, "scheduler").IsNotNull();
             Condition.Requires(work, "work").IsNotNull();

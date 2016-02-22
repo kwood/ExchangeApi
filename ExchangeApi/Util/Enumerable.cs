@@ -33,7 +33,7 @@ namespace ExchangeApi.Util
         }
     }
 
-    public static class Enumerable
+    public static class EnumerableExtension
     {
         public static IEnumerable<T> Append<T>(this IEnumerable<T> seq, T last)
         {

@@ -68,6 +68,7 @@
     <Compile Include="Infra\PriorityQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="OkCoin\Authenticator.cs" />
+    <Compile Include="OkCoin\PositionPoller.cs" />
     <Compile Include="OkCoin\REST\ErrorCode.cs" />
     <Compile Include="OkCoin\WebSocket\Channels.cs" />
     <Compile Include="OkCoin\WebSocket\Gateway.cs" />
@@ -90,6 +91,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util\Strings.cs" />
     <Compile Include="Util\Time.cs" />
+    <Compile Include="Util\TimeSpan.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

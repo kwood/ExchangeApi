@@ -51,6 +51,7 @@ namespace Example
                 Products = new List<ExchangeApi.OkCoin.Product>()
                 {
                     ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
+                    ExchangeApi.OkCoin.Instrument.Parse("ltc_usd_next_week"),
                 },
                 EnableMarketData = false,
                 EnableTrading = true,
@@ -117,9 +118,10 @@ namespace Example
             string endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom.REST;
             using (var client = new ExchangeApi.OkCoin.REST.RestClient(endpoint, keys))
             {
-                var future = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week");
-                List<ExchangeApi.OkCoin.FuturePosition> pos = client.FuturePosition(future);
-                _log.Info("Positions for {0}: ({1})", future.Instrument, String.Join(", ", pos.Select(p => p.ToString())));
+                var currency = ExchangeApi.OkCoin.Currency.Usd;
+                var coin = ExchangeApi.OkCoin.CoinType.Btc;
+                List<ExchangeApi.OkCoin.FuturePosition> pos = client.FuturePosition(currency, coin);
+                _log.Info("Positions for {0}-{1}: ({2})", coin, currency, String.Join(", ", pos.Select(p => p.ToString())));
             }
         }
 
@@ -138,8 +140,8 @@ namespace Example
             try
             {
                 // RawConnection();
-                // OkCoinClient();
-                OkCoinRest();
+                OkCoinClient();
+                // OkCoinRest();
                 // CoinbaseRest();
             }
             catch (Exception e)

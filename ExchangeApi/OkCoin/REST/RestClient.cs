@@ -38,14 +38,13 @@ namespace ExchangeApi.OkCoin.REST
 
         // Throws on HTTP timeouts, HTTP errors, parse errors and
         // application errors (when OkCoin gives us error_code).
-        public List<FuturePosition> FuturePosition(Future future)
+        public List<FuturePosition> FuturePosition(Currency currency, CoinType coin)
         {
             try
             {
                 var param = new KV[]
                 {
-                    new KV("symbol", Serialization.AsString(future.CoinType, future.Currency)),
-                    new KV("contract_type", Serialization.AsString(future.FutureType)),
+                    new KV("symbol", Serialization.AsString(coin, currency)),
                 };
                 string content = SendRequest(HttpMethod.Post, "future_position_4fix.do", Authenticated(param));
                 var root = JObject.Parse(content);

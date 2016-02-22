@@ -150,7 +150,6 @@ namespace ExchangeApi.WebSocket
                 {
                     if (_state != State.Connected) break;
                     // If we aren't getting anything in 30 seconds, presume the connection broken.
-                    // TODO: remove the timeout here and implement proper pings to detect broken connections.
                     try { t = _socket.ReceiveAsync(buffer, TimeoutSec(30)); }
                     catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
                 }

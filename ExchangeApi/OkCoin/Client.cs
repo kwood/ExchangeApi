@@ -24,6 +24,26 @@ namespace ExchangeApi.OkCoin
         public bool EnableTrading = false;
         // Client will fire all events on this Scheduler.
         public Scheduler Scheduler = new Scheduler();
+
+        public Config Clone()
+        {
+            var res = new Config()
+            {
+                Endpoint = Endpoint,  // It's immutable.
+                EnableMarketData = EnableMarketData,
+                EnableTrading = EnableTrading,
+                Scheduler = Scheduler,
+            };
+            if (Keys != null)
+            {
+                res.Keys = new Keys() { ApiKey = Keys.ApiKey, SecretKey = Keys.SecretKey };
+            }
+            if (Products != null)
+            {
+                res.Products = Products.Select(p => p.Clone()).ToList();
+            }
+            return res;
+        }
     }
 
     // Thread-safe. All events fire on the Scheduler thread and therefore are serialized.
@@ -39,12 +59,11 @@ namespace ExchangeApi.OkCoin
         // works well with that.
         static readonly TimeSpan PingPeriod = TimeSpan.FromSeconds(10);
 
+        readonly Config _cfg;
         readonly DurableConnection<IMessageIn, IMessageOut> _connection;
-        readonly Product[] _marketDataSubscriptions = new Product[0];
-        readonly HashSet<Tuple<ProductType, Currency>> _tradingSubscriptions =
-            new HashSet<Tuple<ProductType, Currency>>();
         readonly WebSocket.Gateway _gateway;
         readonly PeriodicAction _pinger;
+        readonly PositionPoller _positionPoller;
 
         public Client(Config cfg)
         {
@@ -56,40 +75,51 @@ namespace ExchangeApi.OkCoin
                 Condition.Requires(cfg.Keys.ApiKey, "cfg.Keys.ApiKey").IsNotNullOrWhiteSpace();
                 Condition.Requires(cfg.Keys.SecretKey, "cfg.Keys.SecretKey").IsNotNullOrWhiteSpace();
             }
-            if (cfg.EnableMarketData)
-            {
-                _marketDataSubscriptions =
-                    cfg.Products.GroupBy(p => p.Instrument).Select(p => p.First().Clone()).ToArray();
-            }
             if (cfg.EnableTrading)
             {
                 Condition.Requires(cfg.Keys, "cfg.Keys").IsNotNull();
-                _tradingSubscriptions =
-                    cfg.Products.Select(p => Tuple.Create(p.ProductType, p.Currency))
-                       .GroupBy(p => p).Select(p => p.First()).ToHashSet();
             }
-            Keys keys = cfg.Keys ?? new Keys() { ApiKey = "NONE", SecretKey = "NONE" };
+            _cfg = cfg.Clone();
+            _cfg.Keys = _cfg.Keys ?? new Keys() { ApiKey = "NONE", SecretKey = "NONE" };
             var connector = new CodingConnector<IMessageIn, IMessageOut>(
-                new ExchangeApi.WebSocket.Connector(cfg.Endpoint.WebSocket), new WebSocket.Codec(keys));
-            _connection = new DurableConnection<IMessageIn, IMessageOut>(connector, cfg.Scheduler);
+                new ExchangeApi.WebSocket.Connector(_cfg.Endpoint.WebSocket), new WebSocket.Codec(_cfg.Keys));
+            _connection = new DurableConnection<IMessageIn, IMessageOut>(connector, _cfg.Scheduler);
             _gateway = new WebSocket.Gateway(_connection);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
-            _pinger = new PeriodicAction(cfg.Scheduler, Ping, PingPeriod, PingPeriod);
+            _pinger = new PeriodicAction(_cfg.Scheduler, PingPeriod, PingPeriod, Ping);
+            _positionPoller = new PositionPoller(
+                _cfg.Endpoint.REST, _cfg.Keys, _cfg.Scheduler,
+                _cfg.EnableTrading ? _cfg.Products : new List<Product>());
+            _positionPoller.OnFuturePositions += (msg, isLast) => OnFuturePositionsUpdate?.Invoke(msg, isLast);
         }
 
         // Asynchronous. Events may fire even after Dispose() returns.
         public void Dispose()
         {
+            _positionPoller.Dispose();
             _pinger.Dispose();
             _gateway.Dispose();
             _connection.Dispose();
         }
 
         // See comments in DurableSubscriber.
-        public void Connect() { _connection.Connect(); }
-        public void Disconnect() { _connection.Disconnect(); }
-        public void Reconnect() { _connection.Reconnect(); }
+        public void Connect()
+        {
+            _positionPoller.Connect();
+            _connection.Connect();
+        }
+        public void Disconnect()
+        {
+            _connection.Disconnect();
+            _positionPoller.Disconnect();
+        }
+        public void Reconnect()
+        {
+            _positionPoller.Connect();
+            _connection.Reconnect();
+        }
+
         // Note that Connected == true doesn't mean we have an active connection to
         // the exchange. It merely means that the Client is in the "connected" state and
         // is trying to talk to the exchange.
@@ -104,6 +134,11 @@ namespace ExchangeApi.OkCoin
         //
         // This event may fire even if our possition didn't change. In fact, it fires each time we place an
         // order.
+        //
+        // On rare occasions a stale position may be delivered. In such cases the fresh position is always
+        // delivered soon afterwards. For example, if the position has changed at times T0, T1, T2, it's
+        // possible that OnFuturePositionsUpdate will see the following updates: T1, T0, T1, T2.
+        // After T0 is delivered, the following T1 is delivered immediately.
         public event Action<TimestampedMsg<FuturePositionsUpdate>, bool> OnFuturePositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread if
@@ -178,21 +213,43 @@ namespace ExchangeApi.OkCoin
 
         void OnConnection(IReader<IMessageIn> reader, IWriter<IMessageOut> writer)
         {
-            foreach (Product p in _marketDataSubscriptions)
+            if (_cfg.EnableMarketData)
             {
-                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Depth60 },
-                          consumeFirst: false);
-                Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Trades },
-                          consumeFirst: true);
+                // Products without duplicates.
+                var products = _cfg.Products
+                    .GroupBy(p => p.Instrument)
+                    .Select(p => p.First());
+                foreach (Product p in products)
+                {
+                    Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Depth60 },
+                              consumeFirst: false);
+                    Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Trades },
+                              consumeFirst: true);
+                }
             }
-            foreach (var p in _tradingSubscriptions)
+            if (_cfg.EnableTrading)
             {
-                Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
-                          consumeFirst: true);
-            }
-            if (_tradingSubscriptions.Select(p => p.Item1 == ProductType.Future).Any())
-            {
-                Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
+                // {ProductType, Currency} pairs without duplicates.
+                var trading = _cfg.Products
+                    .Select(p => Tuple.Create(p.ProductType, p.Currency))
+                    .GroupBy(p => p)
+                    .Select(p => p.First());
+                foreach (var p in trading)
+                {
+                    Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
+                              consumeFirst: true);
+                }
+                if (trading.Select(p => p.Item1 == ProductType.Future).Any())
+                {
+                    Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
+                }
+                // Note that positions may be delivered to OnFuturePositionsUpdate out of order.
+                // Via polling we may get positions that were valid at time T1; at the same time,
+                // we might have an incremental position update in the queue for T0, which will be
+                // delivered later. However, when such reversion happens, there is aways an
+                // incremental position update for T1 in the queue as well. This means that whenever
+                // positions get delivered out of order, the mistake gets immediately corrected.
+                _positionPoller.PollNow();
             }
         }
 
