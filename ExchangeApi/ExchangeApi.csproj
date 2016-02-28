@@ -70,6 +70,7 @@
     <Compile Include="OkCoin\Authenticator.cs" />
     <Compile Include="OkCoin\PositionPoller.cs" />
     <Compile Include="OkCoin\REST\ErrorCode.cs" />
+    <Compile Include="OkCoin\Settlement.cs" />
     <Compile Include="OkCoin\WebSocket\Channels.cs" />
     <Compile Include="OkCoin\WebSocket\Gateway.cs" />
     <Compile Include="OkCoin\REST\RestClient.cs" />

@@ -484,6 +484,7 @@ namespace ExchangeApi.OkCoin
         public PositionType PositionType { get; set; }
         // Example: "20160212034" (settlement on 2016-02-12).
         public string ContractId { get; set; }
+        public FutureType FutureType { get; set;}
         // How many contracts we own.
         public decimal Quantity { get; set; }
         // This is meant to be the average open price but my tests show that

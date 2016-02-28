@@ -57,13 +57,17 @@ namespace ExchangeApi.OkCoin.REST
                     {
                         var quantity = (decimal)data[prefix + "_amount"];
                         if (quantity == 0) return;
+                        FutureType ft = Serialization.ParseFutureType((string)data["contract_type"]);
+                        string contractId = (string)data["contract_id"];
+                        VerifyFutureType(ft, contractId);
                         res.Add(new FuturePosition()
                         {
                             Quantity = quantity,
                             PositionType = type,
                             AvgPrice = (decimal)data[prefix + "_price_avg"],
-                            ContractId = (string)data["contract_id"],
+                            ContractId = contractId,
                             Leverage = Serialization.ParseLeverage((string)data["lever_rate"]),
+                            FutureType = ft,
                         });
                     };
                     AddPosition(PositionType.Long, "buy");
@@ -75,6 +79,23 @@ namespace ExchangeApi.OkCoin.REST
             {
                 _log.Warn(e, "RestClient.FuturePosition() failed");
                 throw;
+            }
+        }
+
+        // Verifies that FutureTypeFromContractId(contractId) matches `actual`.
+        void VerifyFutureType(FutureType actual, string contractId)
+        {
+            DateTime now = DateTime.UtcNow;
+            FutureType deduced = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1));
+            // FutureTypeFromContractId() is unreliable very close to settlement time.
+            // If it gives us the same value at now - 1m and now + 1m, we expect the actual contract_type set
+            // by the exchange to be equal to what we deduce from contract_id. If it's not the case, it means our
+            // algorithm is broken and the positions received from WebSocket can't be trusted.
+            if (deduced != actual &&
+                deduced == Settlement.FutureTypeFromContractId(contractId, now + TimeSpan.FromMinutes(2)))
+            {
+                _log.Fatal("Unexpected {{contract_type, contract_id}} pair: {{{0}, {1}}}. Expected contract_type: {2}.",
+                           actual, contractId, deduced);
             }
         }
 

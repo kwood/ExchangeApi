@@ -149,6 +149,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                 return msg;
             }
 
+            DateTime now = DateTime.UtcNow;
             string symbol = (string)_data["symbol"];
             string[] parts = symbol.Split(new char[] { '_' }, 2);
             Condition.Requires(parts, "parts").HasLength(2);
@@ -161,11 +162,19 @@ namespace ExchangeApi.OkCoin.WebSocket
                 decimal quantity = (decimal)elem["hold_amount"];
                 if (quantity != 0)
                 {
+                    string contractId = (string)elem["contract_id"];
                     msg.Positions.Add(new FuturePosition()
                     {
                         Leverage = Serialization.ParseLeverage((string)elem["lever_rate"]),
                         PositionType = Serialization.ParsePositionType((string)elem["position"]),
-                        ContractId = (string)elem["contract_id"],
+                        ContractId = contractId,
+                        // Figuring out FutureType around the time of settlement is tricky.
+                        // We assume the following:
+                        //   1. Our local time when parsing a message is less than one minute ahead of the server time
+                        //      when the message was produced. Basically, latency + time skey must be under a minute.
+                        //   2. When settlement kicks in, trading is stopped for more than a minute plus time skew.
+                        //      OkCoin docs say they stop all trading for around 10 minutes, so it seems reasonable.
+                        FutureType = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1)),
                         Quantity = quantity,
                         AvgPrice = (decimal)elem["avgprice"],
                     });
