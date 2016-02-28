@@ -158,14 +158,18 @@ namespace ExchangeApi.OkCoin.WebSocket
             msg.Positions = new List<FuturePosition>();
             foreach (JToken elem in _data["positions"])
             {
-                msg.Positions.Add(new FuturePosition()
+                decimal quantity = (decimal)elem["hold_amount"];
+                if (quantity != 0)
                 {
-                    Leverage = Serialization.ParseLeverage((string)elem["lever_rate"]),
-                    PositionType = Serialization.ParsePositionType((string)elem["position"]),
-                    ContractId = (string)elem["contract_id"],
-                    Quantity = (decimal)elem["hold_amount"],
-                    AvgPrice = (decimal)elem["avgprice"],
-                });
+                    msg.Positions.Add(new FuturePosition()
+                    {
+                        Leverage = Serialization.ParseLeverage((string)elem["lever_rate"]),
+                        PositionType = Serialization.ParsePositionType((string)elem["position"]),
+                        ContractId = (string)elem["contract_id"],
+                        Quantity = quantity,
+                        AvgPrice = (decimal)elem["avgprice"],
+                    });
+                }
             }
             return msg;
         }
