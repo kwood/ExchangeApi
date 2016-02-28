@@ -45,6 +45,7 @@ namespace ExchangeApi.OkCoin.REST
                 var param = new KV[]
                 {
                     new KV("symbol", Serialization.AsString(coin, currency)),
+                    new KV("type", "1"),
                 };
                 string content = SendRequest(HttpMethod.Post, "future_position_4fix.do", Authenticated(param));
                 var root = JObject.Parse(content);
