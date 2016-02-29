@@ -12,12 +12,12 @@ namespace ExchangeApi
     // where at most one inflight request can exist at any given time.
     //
     // Thread-safe.
-    class Turnstile<In, Out>
+    class Turnstile<Req, Resp>
     {
         class Callback
         {
             // Not null. Readonly.
-            public Action<TimestampedMsg<In>> Done;
+            public Action<TimestampedMsg<Req>> Done;
         }
 
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
@@ -26,13 +26,13 @@ namespace ExchangeApi
         // If we don't receive a reply to our request within this time span, give up.
         static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(10);
 
-        readonly DurableConnection<In, Out> _connection;
+        readonly DurableConnection<Req, Resp> _connection;
         Callback _inflight = null;
         // Protects _inflight and its value.
         readonly object _monitor = new object();
         readonly RequestQueue _queue;
 
-        public Turnstile(DurableConnection<In, Out> connection)
+        public Turnstile(DurableConnection<Req, Resp> connection)
         {
             Condition.Requires(connection, "connection").IsNotNull();
             _connection = connection;
@@ -44,7 +44,7 @@ namespace ExchangeApi
         // Otherwise puts it in a queue. When the current inflight request finishes,
         // the next one will be sent.
         // Inflight requests finish either when OnReply() is called or they time out.
-        public void Send(Out msg, Action<TimestampedMsg<In>> done)
+        public void Send(Resp msg, Action<TimestampedMsg<Req>> done)
         {
             DateTime deadline = DateTime.UtcNow + RequestTimeout;
             _queue.Send(() => TrySend(msg, deadline, done), deadline, (bool success) =>
@@ -60,7 +60,7 @@ namespace ExchangeApi
         // Processes the reply to the last request that we sent.
         // It's the caller's responsibility to guarantee that this message is indeed the
         // reply and not some other unrelated message.
-        public void OnReply(TimestampedMsg<In> msg)
+        public void OnReply(TimestampedMsg<Req> msg)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             Callback cb;
@@ -82,7 +82,7 @@ namespace ExchangeApi
         // and only if Send() returns true. Its argument is null on timeout.
         //
         // Returns false if there is already an inflight message.
-        bool TrySend(Out msg, DateTime deadline, Action<TimestampedMsg<In>> done)
+        bool TrySend(Resp msg, DateTime deadline, Action<TimestampedMsg<Req>> done)
         {
             Condition.Requires(done, "done").IsNotNull();
             var cb = new Callback() { Done = done };
@@ -126,6 +126,7 @@ namespace ExchangeApi
         {
             lock (_monitor)
             {
+                // This can happen if we get a reply before we know our request is sent successfully.
                 if (cb != _inflight) return;
                 if (!success)
                 {
@@ -150,11 +151,12 @@ namespace ExchangeApi
             Condition.Requires(cb, "cb").IsNotNull();
             lock (_monitor)
             {
-                if (cb != _inflight) return;
+                if (cb != _inflight) return;  // Happy path: we already processed a reply to this request.
                 _inflight = null;
                 _log.Warn("Giving up waiting for response. Time out. Triggering reconnection.");
                 // It's unsafe to keep using the same connection. If a reply to our request were
                 // to come later, we could match it to a wrong future request.
+                // We assume that replies to requests sent in one connection can't be delivered in another.
                 _connection.Reconnect();
             }
             try { cb.Done.Invoke(null); }

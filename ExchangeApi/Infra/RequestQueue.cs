@@ -12,6 +12,10 @@ namespace ExchangeApi
     {
         class Entry
         {
+            // Active entries have non-null Request and Done.
+            // Inactive ones, for which Done has already been called,
+            // have both these fields null.
+            // Entries are mutated only in the scheduler thread.
             public Func<bool> Request;
             public DateTime Deadline;
             public Action<bool> Done;
@@ -21,6 +25,8 @@ namespace ExchangeApi
 
         readonly Scheduler _scheduler;
         Queue<Entry> _queue = new Queue<Entry>();
+        // TODO: trigger _queue compaction when the size of the queue is large
+        // and _numActiveRequests is small.
         long _numActiveRequests = 0;
         readonly object _monitor = new object();
 
@@ -106,7 +112,7 @@ namespace ExchangeApi
             bool success = false;
             try { success = head.Request.Invoke(); }
             catch (Exception e) { _log.Warn(e, "Ignoring exception from user request"); }
-            if (!success) return;
+            if (!success) return;  // Gonna do nothing until either TryProcess() or the entry at head expires.
             Finish(head, success);
             lock (_monitor)
             {
