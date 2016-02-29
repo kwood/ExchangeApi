@@ -21,6 +21,10 @@ namespace ExchangeApi
         }
 
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
+
+        // TODO: support per-request timeouts. Do it only after long timeouts stop having
+        // negative effects on memory usage.
+
         // If we can't send a request within this time span, give up.
         static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(1);
         // If we don't receive a reply to our request within this time span, give up.
