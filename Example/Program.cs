@@ -51,7 +51,6 @@ namespace Example
                 Products = new List<ExchangeApi.OkCoin.Product>()
                 {
                     ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
-                    ExchangeApi.OkCoin.Instrument.Parse("ltc_usd_next_week"),
                 },
                 EnableMarketData = false,
                 EnableTrading = true,
@@ -85,25 +84,22 @@ namespace Example
                     _log.Info("OnCancelOrder(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg?.Value);
                 };
                 client.Connect();
-                while (true)
-                {
-                    Thread.Sleep(1000);
-                    var req = new ExchangeApi.OkCoin.NewFutureRequest()
-                    {
-                        Amount = new ExchangeApi.OkCoin.Amount()
-                        {
-                            Side = ExchangeApi.OkCoin.Side.Sell,
-                            Price = 412.67m,
-                            Quantity = 1m,
-                        },
-                        Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
-                        Leverage = ExchangeApi.OkCoin.Leverage.x10,
-                        OrderType = ExchangeApi.OkCoin.OrderType.Limit,
-                        PositionType = ExchangeApi.OkCoin.PositionType.Long,
-                    };
-                    if (client.Send(req, OnNewOrder)) break;
-                }
                 Thread.Sleep(5000);
+                var req = new ExchangeApi.OkCoin.NewFutureRequest()
+                {
+                    Amount = new ExchangeApi.OkCoin.Amount()
+                    {
+                        Side = ExchangeApi.OkCoin.Side.Buy,
+                        Price = 430.90m,
+                        Quantity = 1m,
+                    },
+                    Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
+                    Leverage = ExchangeApi.OkCoin.Leverage.x10,
+                    OrderType = ExchangeApi.OkCoin.OrderType.Limit,
+                    PositionType = ExchangeApi.OkCoin.PositionType.Long,
+                };
+                client.Send(req, OnNewOrder);
+                while (true) Thread.Sleep(5000);
             }
             Thread.Sleep(2000);
         }

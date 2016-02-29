@@ -99,7 +99,6 @@ namespace ExchangeApi.OkCoin
         {
             _positionPoller.Dispose();
             _pinger.Dispose();
-            _gateway.Dispose();
             _connection.Dispose();
         }
 
@@ -145,30 +144,25 @@ namespace ExchangeApi.OkCoin
 
         // TODO: Add OnSpotPositionsUpdate.
 
-        // Action `done` will be called exactly once in the scheduler thread if
-        // and only if Send() returns true. Its argument is null on timeout.
+        // Action `done` will be called exactly once in the scheduler thread.
+        // Its argument will null on timeout.
         //
-        // Send() returns false in the following cases:
-        //   * We aren't currently connected to the exchange.
-        //   * There is an inflight message with the same channel.
-        //   * IO error while sending.
-        //
-        // Send() throws iif req is null. It blocks until the data is sent.
-        public bool Send(NewSpotRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
+        // Send() throws iif req is null. It doesn't block.
+        public void Send(NewSpotRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
         {
-            return _gateway.Send(req, CastCallback(done));
+            _gateway.Send(req, CastCallback(done));
         }
 
         // See Send() above.
-        public bool Send(NewFutureRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
+        public void Send(NewFutureRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
         {
-            return _gateway.Send(req, CastCallback(done));
+            _gateway.Send(req, CastCallback(done));
         }
 
         // See Send() above.
-        public bool Send(CancelOrderRequest req, Action<TimestampedMsg<CancelOrderResponse>> done)
+        public void Send(CancelOrderRequest req, Action<TimestampedMsg<CancelOrderResponse>> done)
         {
-            return _gateway.Send(req, CastCallback(done));
+            _gateway.Send(req, CastCallback(done));
         }
 
         Action<TimestampedMsg<IMessageIn>> CastCallback<T>(Action<TimestampedMsg<T>> action)

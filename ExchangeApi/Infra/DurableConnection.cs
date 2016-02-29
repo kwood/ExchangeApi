@@ -77,6 +77,8 @@ namespace ExchangeApi
 
         // Not null. All events fire on this scheduler.
         readonly Scheduler _scheduler;
+        // Not null.
+        readonly RequestQueue _requestQueue;
 
         // All events are serialized.
         //
@@ -125,6 +127,7 @@ namespace ExchangeApi
             Condition.Requires(scheduler, "scheduler").IsNotNull();
             _connector = connector;
             _scheduler = scheduler;
+            _requestQueue = new RequestQueue(scheduler);
         }
 
         // Does not dispose of the scheduler.
@@ -228,6 +231,21 @@ namespace ExchangeApi
                     }
                 }
             }
+        }
+
+        // `OnMessage` may trigger before `done(true)`.
+        public void SendAsync(Out msg, DateTime deadline, Action<bool> done)
+        {
+            Func<bool> request = () =>
+            {
+                using (IWriter<Out> writer = TryLock())
+                {
+                    if (writer == null) return false;
+                    writer.Send(msg);
+                    return true;
+                }
+            };
+            _requestQueue.Send(request, deadline, done);
         }
 
         // Doesn't block.
@@ -407,6 +425,7 @@ namespace ExchangeApi
                     _state = State.Connected;
                     // LockWithTimeout() might be waiting for _state to become Connected.
                     System.Threading.Monitor.PulseAll(_stateMonitor);
+                    _requestQueue.TryProcess();
                 }
                 else if (_state == State.Disconnecting && !connected)
                 {
