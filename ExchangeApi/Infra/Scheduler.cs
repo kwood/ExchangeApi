@@ -27,6 +27,9 @@ namespace ExchangeApi
         }
 
         // Schedules the specified action to run at the specified time.
+        //
+        // TODO: return a handle that allows for best-effort non-blocking cancellation.
+        // Then use it in Turnstile for cancelling timeouts and avoid excessive memory usage.
         public void Schedule(DateTime when, Action action)
         {
             _actions.Push(action, when);
