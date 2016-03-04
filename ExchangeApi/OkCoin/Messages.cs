@@ -360,8 +360,8 @@ namespace ExchangeApi.OkCoin
 
     public enum PositionType
     {
-        Long,
-        Short,
+        Long = 1,
+        Short = -1,
     }
 
     public enum Leverage
