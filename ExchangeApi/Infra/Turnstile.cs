@@ -55,7 +55,7 @@ namespace ExchangeApi
             {
                 if (!success)
                 {
-                    _log.Warn("Unable to send request to the exchange: time out.");
+                    _log.Warn("Unable to send request to the exchange: timed out in Turnstile.");
                     done.Invoke(null);
                 }
             });
@@ -143,7 +143,7 @@ namespace ExchangeApi
             }
             else
             {
-                _log.Warn("Unable to send request to the exchange: time out.");
+                _log.Warn("Unable to send request to the exchange: timed out in DurableConnection.");
                 try { cb.Done.Invoke(null); }
                 catch (Exception e) { _log.Warn(e, "Ignoring exception from user callback"); }
                 _queue.TryProcess();
