@@ -86,6 +86,7 @@
     <Compile Include="Infra\DurableConnection.cs" />
     <Compile Include="Util\Enumerable.cs" />
     <Compile Include="Util\Enum.cs" />
+    <Compile Include="Util\JToken.cs" />
     <Compile Include="Util\Printable.cs" />
     <Compile Include="OkCoin\Instance.cs" />
     <Compile Include="OkCoin\Messages.cs" />
