@@ -77,7 +77,8 @@ namespace ExchangeApi
                     next = _next;
                 }
                 // Task.WhenAny() returns Task<Task>, hence the double await.
-                await await Task.WhenAny(Task.Delay(delay, cancel), next);
+                // Will throw if cancellation is requested through `cancel`.
+                await await Task.WhenAny(Task.Delay(delay), next);
             }
         }
 
