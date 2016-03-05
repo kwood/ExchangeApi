@@ -1,4 +1,5 @@
 ﻿using Conditions;
+using ExchangeApi.Util;
 using Newtonsoft.Json.Linq;
 using NLog;
 using System;
@@ -63,8 +64,8 @@ namespace ExchangeApi.Coinbase
                         Amount = new Amount()
                         {
                             Side = side,
-                            Price = (decimal)order[0],
-                            Quantity = (decimal)order[1],
+                            Price = order[0].AsDecimal(),
+                            Quantity = order[1].AsDecimal(),
                         }
                     });
                 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.Util
 {
-    public static class JToken
+    public static class JTokenExtension
     {
         static readonly char[] E = new char[] { 'e', 'E' };
 

@@ -55,7 +55,7 @@ namespace ExchangeApi.OkCoin.REST
                 {
                     Action<PositionType, string> AddPosition = (PositionType type, string prefix) =>
                     {
-                        var quantity = (decimal)data[prefix + "_amount"];
+                        var quantity = data[prefix + "_amount"].AsDecimal();
                         if (quantity == 0) return;
                         FutureType ft = Serialization.ParseFutureType((string)data["contract_type"]);
                         string contractId = (string)data["contract_id"];
@@ -64,7 +64,7 @@ namespace ExchangeApi.OkCoin.REST
                         {
                             Quantity = quantity,
                             PositionType = type,
-                            AvgPrice = (decimal)data[prefix + "_price_avg"],
+                            AvgPrice = data[prefix + "_price_avg"].AsDecimal(),
                             ContractId = contractId,
                             Leverage = Serialization.ParseLeverage((string)data["lever_rate"]),
                             FutureType = ft,

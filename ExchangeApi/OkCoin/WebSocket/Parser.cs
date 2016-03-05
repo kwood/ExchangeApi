@@ -1,4 +1,5 @@
 ﻿using Conditions;
+using ExchangeApi.Util;
 using Newtonsoft.Json.Linq;
 using NLog;
 using System;
@@ -61,8 +62,8 @@ namespace ExchangeApi.OkCoin.WebSocket
                     Timestamp = Util.Time.FromDayTime((TimeSpan)elem[3], TimeSpan.FromHours(8)),
                     Amount = new Amount()
                     {
-                        Price = (decimal)elem[1],
-                        Quantity = (decimal)elem[2],
+                        Price = elem[1].AsDecimal(),
+                        Quantity = elem[2].AsDecimal(),
                         Side = Serialization.ParseSide((string)elem[4]),
                     }
                 });
@@ -89,8 +90,8 @@ namespace ExchangeApi.OkCoin.WebSocket
                     msg.Orders.Add(new Amount()
                     {
                         Side = side,
-                        Price = (decimal)pair[0],
-                        Quantity = (decimal)pair[1],
+                        Price = pair[0].AsDecimal(),
+                        Quantity = pair[1].AsDecimal(),
                     });
                 }
             };
@@ -159,7 +160,7 @@ namespace ExchangeApi.OkCoin.WebSocket
             msg.Positions = new List<FuturePosition>();
             foreach (JToken elem in _data["positions"])
             {
-                decimal quantity = (decimal)elem["hold_amount"];
+                decimal quantity = elem["hold_amount"].AsDecimal();
                 if (quantity != 0)
                 {
                     string contractId = (string)elem["contract_id"];
@@ -176,7 +177,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                         //      OkCoin docs say they stop all trading for around 10 minutes, so it seems reasonable.
                         FutureType = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1)),
                         Quantity = quantity,
-                        AvgPrice = (decimal)elem["avgprice"],
+                        AvgPrice = elem["avgprice"].AsDecimal(),
                     });
                 }
             }
@@ -219,12 +220,12 @@ namespace ExchangeApi.OkCoin.WebSocket
                 },
                 Amount = new Amount()
                 {
-                    Price = (decimal)data["price"],
-                    Quantity = (decimal)data["amount"],
+                    Price = data["price"].AsDecimal(),
+                    Quantity = data["amount"].AsDecimal(),
                 },
-                CumFillQuantity = (decimal)data["deal_amount"],
-                AvgFillPrice = (decimal)data["price_avg"],
-                Fee = (decimal)data["fee"],
+                CumFillQuantity = data["deal_amount"].AsDecimal(),
+                AvgFillPrice = data["price_avg"].AsDecimal(),
+                Fee = data["fee"].AsDecimal(),
                 ContractId = (string)data["contract_id"],
             };
 
@@ -287,11 +288,11 @@ namespace ExchangeApi.OkCoin.WebSocket
                 Product = new Spot() { Currency = currency },
                 Amount = new Amount()
                 {
-                    Price = (decimal)data["tradeUnitPrice"],
-                    Quantity = (decimal)data["tradeAmount"],
+                    Price = data["tradeUnitPrice"].AsDecimal(),
+                    Quantity = data["tradeAmount"].AsDecimal(),
                 },
-                CumFillQuantity = (decimal)data["completedTradeAmount"],
-                AvgFillPrice = (decimal)data["averagePrice"],
+                CumFillQuantity = data["completedTradeAmount"].AsDecimal(),
+                AvgFillPrice = data["averagePrice"].AsDecimal(),
             };
 
             // Infer CoinType from "symbol". E.g., "btc_usd" => CoinType.Btc.
@@ -309,9 +310,9 @@ namespace ExchangeApi.OkCoin.WebSocket
 
             // sigTradeAmount and sigTradePrice are optional fields.
             JToken fillQuantity = data["sigTradeAmount"];
-            if (fillQuantity != null) res.FillQuantity = (decimal)fillQuantity;
+            if (fillQuantity != null) res.FillQuantity = fillQuantity.AsDecimal();
             JToken fillPrice = data["sigTradePrice"];
-            if (fillPrice != null) res.FillPrice = (decimal)fillPrice;
+            if (fillPrice != null) res.FillPrice = fillPrice.AsDecimal();
 
             return res;
         }
