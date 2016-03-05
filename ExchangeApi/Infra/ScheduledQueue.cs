@@ -54,12 +54,17 @@ namespace ExchangeApi
                 Task next = null;
                 lock (_monitor)
                 {
+                    if (_next != null)
+                    {
+                        // If we don't run the task, it'll never get deleted.
+                        _next.RunSynchronously();
+                        _next = null;
+                    }
                     if (_data.Any())
                     {
                         DateTime now = DateTime.UtcNow;
                         if (_data.Front().Key <= now)
                         {
-                            // Note that we may leave _next in non-null state. That's OK.
                             return new ReadyMessage<TValue>()
                             {
                                 Message = _data.Pop().Value,
