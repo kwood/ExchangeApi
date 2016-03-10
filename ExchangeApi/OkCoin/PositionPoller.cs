@@ -86,19 +86,23 @@ namespace ExchangeApi.OkCoin
         // Called from the scheduler thread.
         void PollOne(Currency currency, CoinType coin)
         {
-            var update = new FuturePositionsUpdate()
+            foreach (var elem in _restClient.FuturePositions(currency, coin))
             {
-                Currency = currency,
-                CoinType = coin,
-                Positions = _restClient.FuturePosition(currency, coin),
-            };
-            var msg = new TimestampedMsg<FuturePositionsUpdate>()
-            {
-                Received = DateTime.UtcNow,
-                Value = update,
-            };
-            try { OnFuturePositions?.Invoke(msg); }
-            catch (Exception e) { _log.Warn(e, "Ignoring exception from OnFuturePositions"); }
+                var update = new FuturePositionsUpdate()
+                {
+                    Currency = currency,
+                    CoinType = coin,
+                    FutureType = elem.Key,
+                    Positions = elem.Value,
+                };
+                var msg = new TimestampedMsg<FuturePositionsUpdate>()
+                {
+                    Received = DateTime.UtcNow,
+                    Value = update,
+                };
+                try { OnFuturePositions?.Invoke(msg); }
+                catch (Exception e) { _log.Warn(e, "Ignoring exception from OnFuturePositions"); }
+            }
         }
     }
 }

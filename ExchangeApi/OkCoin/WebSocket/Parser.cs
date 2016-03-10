@@ -156,31 +156,36 @@ namespace ExchangeApi.OkCoin.WebSocket
             Condition.Requires(parts, "parts").HasLength(2);
             msg.CoinType = Serialization.ParseCoinType(parts[0]);
             msg.Currency = Serialization.ParseCurrency(parts[1]);
-
             msg.Positions = new List<FuturePosition>();
+
+            FutureType? futureType = null;
+            Condition.Requires(_data["positions"], "positions").IsNotEmpty();
             foreach (JToken elem in _data["positions"])
             {
+                string contractId = (string)elem["contract_id"];
+                // Figuring out FutureType around the time of settlement is tricky.
+                // We assume the following:
+                //   1. Our local time when parsing a message is less than one minute ahead of the server time
+                //      when the message was produced. Basically, latency + time skey must be under a minute.
+                //   2. When settlement kicks in, trading is stopped for more than a minute plus time skew.
+                //      OkCoin docs say they stop all trading for around 10 minutes, so it seems reasonable.
+                FutureType ft = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1));
+                if (futureType.HasValue && futureType.Value != ft)
+                    throw new Exception(String.Format("Inconsistent FutureType: {0} vs {1}", futureType.Value, ft));
                 decimal quantity = elem["hold_amount"].AsDecimal();
                 if (quantity != 0)
                 {
-                    string contractId = (string)elem["contract_id"];
                     msg.Positions.Add(new FuturePosition()
                     {
                         Leverage = Serialization.ParseLeverage((string)elem["lever_rate"]),
                         PositionType = Serialization.ParsePositionType((string)elem["position"]),
                         ContractId = contractId,
-                        // Figuring out FutureType around the time of settlement is tricky.
-                        // We assume the following:
-                        //   1. Our local time when parsing a message is less than one minute ahead of the server time
-                        //      when the message was produced. Basically, latency + time skey must be under a minute.
-                        //   2. When settlement kicks in, trading is stopped for more than a minute plus time skew.
-                        //      OkCoin docs say they stop all trading for around 10 minutes, so it seems reasonable.
-                        FutureType = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1)),
                         Quantity = quantity,
                         AvgPrice = elem["avgprice"].AsDecimal(),
                     });
                 }
             }
+            msg.FutureType = futureType.Value;
             return msg;
         }
 

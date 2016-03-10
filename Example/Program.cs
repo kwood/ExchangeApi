@@ -90,7 +90,7 @@ namespace Example
                     Amount = new ExchangeApi.OkCoin.Amount()
                     {
                         Side = ExchangeApi.OkCoin.Side.Buy,
-                        Price = 430.90m,
+                        Price = 400.90m,
                         Quantity = 1m,
                     },
                     Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
@@ -116,8 +116,11 @@ namespace Example
             {
                 var currency = ExchangeApi.OkCoin.Currency.Usd;
                 var coin = ExchangeApi.OkCoin.CoinType.Btc;
-                List<ExchangeApi.OkCoin.FuturePosition> pos = client.FuturePosition(currency, coin);
-                _log.Info("Positions for {0}-{1}: ({2})", coin, currency, String.Join(", ", pos.Select(p => p.ToString())));
+                foreach (var elem in client.FuturePositions(currency, coin))
+                {
+                    _log.Info("Positions for {0}-{1}-{2}: ({3})", coin, currency, elem.Key,
+                              String.Join(", ", elem.Value.Select(p => p.ToString())));
+                }
             }
         }
 

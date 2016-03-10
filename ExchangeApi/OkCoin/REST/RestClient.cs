@@ -38,7 +38,7 @@ namespace ExchangeApi.OkCoin.REST
 
         // Throws on HTTP timeouts, HTTP errors, parse errors and
         // application errors (when OkCoin gives us error_code).
-        public List<FuturePosition> FuturePosition(Currency currency, CoinType coin)
+        public Dictionary<FutureType, List<FuturePosition>> FuturePositions(Currency currency, CoinType coin)
         {
             try
             {
@@ -50,7 +50,7 @@ namespace ExchangeApi.OkCoin.REST
                 string content = SendRequest(HttpMethod.Post, "future_position_4fix.do", Authenticated(param));
                 var root = JObject.Parse(content);
                 CheckErrorCode(root);
-                var res = new List<FuturePosition>();
+                var res = new Dictionary<FutureType, List<FuturePosition>>();
                 foreach (JObject data in (JArray)root["holding"])
                 {
                     Action<PositionType, string> AddPosition = (PositionType type, string prefix) =>
@@ -60,14 +60,19 @@ namespace ExchangeApi.OkCoin.REST
                         FutureType ft = Serialization.ParseFutureType((string)data["contract_type"]);
                         string contractId = (string)data["contract_id"];
                         VerifyFutureType(ft, contractId);
-                        res.Add(new FuturePosition()
+                        List<FuturePosition> pos;
+                        if (!res.TryGetValue(ft, out pos))
+                        {
+                            pos = new List<FuturePosition>();
+                            res.Add(ft, pos);
+                        }
+                        pos.Add(new FuturePosition()
                         {
                             Quantity = quantity,
                             PositionType = type,
                             AvgPrice = data[prefix + "_price_avg"].AsDecimal(),
                             ContractId = contractId,
                             Leverage = Serialization.ParseLeverage((string)data["lever_rate"]),
-                            FutureType = ft,
                         });
                     };
                     AddPosition(PositionType.Long, "buy");

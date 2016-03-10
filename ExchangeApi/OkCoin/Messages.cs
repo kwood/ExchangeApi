@@ -484,7 +484,6 @@ namespace ExchangeApi.OkCoin
         public PositionType PositionType { get; set; }
         // Example: "20160212034" (settlement on 2016-02-12).
         public string ContractId { get; set; }
-        public FutureType FutureType { get; set;}
         // How many contracts we own.
         public decimal Quantity { get; set; }
         // This is meant to be the average open price but my tests show that
@@ -498,10 +497,12 @@ namespace ExchangeApi.OkCoin
     {
         public ErrorCode? Error { get; set; }
 
-        // OkCoin sends us separate notifications for different currency-coin pairs.
-        // When we buy a btc_usd contract, we receive the list of our btc_usd positions.
+        // OkCoin sends us separate notifications for different {Currency, CoinType, FutureType}
+        // triplets. When we buy a btc_usd_this_week contract, we receive the list of our positions
+        // for that contract.
         public Currency Currency { get; set; }
         public CoinType CoinType { get; set; }
+        public FutureType FutureType { get; set; }
         // The triplet {ContractId, PositionType, Leverage} is unique among the elements
         // of Positions.
         public List<FuturePosition> Positions { get; set; }
