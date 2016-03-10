@@ -172,6 +172,7 @@ namespace ExchangeApi.OkCoin.WebSocket
                 FutureType ft = Settlement.FutureTypeFromContractId(contractId, now - TimeSpan.FromMinutes(1));
                 if (futureType.HasValue && futureType.Value != ft)
                     throw new Exception(String.Format("Inconsistent FutureType: {0} vs {1}", futureType.Value, ft));
+                futureType = ft;
                 decimal quantity = elem["hold_amount"].AsDecimal();
                 if (quantity != 0)
                 {
