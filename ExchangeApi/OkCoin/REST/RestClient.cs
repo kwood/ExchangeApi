@@ -51,6 +51,10 @@ namespace ExchangeApi.OkCoin.REST
                 var root = JObject.Parse(content);
                 CheckErrorCode(root);
                 var res = new Dictionary<FutureType, List<FuturePosition>>();
+                foreach (var e in Util.Enum.Values<FutureType>())
+                {
+                    res.Add(e, new List<FuturePosition>());
+                }
                 foreach (JObject data in (JArray)root["holding"])
                 {
                     Action<PositionType, string> AddPosition = (PositionType type, string prefix) =>
@@ -60,13 +64,7 @@ namespace ExchangeApi.OkCoin.REST
                         FutureType ft = Serialization.ParseFutureType((string)data["contract_type"]);
                         string contractId = (string)data["contract_id"];
                         VerifyFutureType(ft, contractId);
-                        List<FuturePosition> pos;
-                        if (!res.TryGetValue(ft, out pos))
-                        {
-                            pos = new List<FuturePosition>();
-                            res.Add(ft, pos);
-                        }
-                        pos.Add(new FuturePosition()
+                        res[ft].Add(new FuturePosition()
                         {
                             Quantity = quantity,
                             PositionType = type,
