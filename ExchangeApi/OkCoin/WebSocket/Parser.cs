@@ -190,6 +190,65 @@ namespace ExchangeApi.OkCoin.WebSocket
             return msg;
         }
 
+        public IMessageIn Visit(SpotPositionsUpdate msg)
+        {
+            // RequestType == Poll.
+            //
+            //   "info": {
+            //     "funds": {
+            //       "asset": {
+            //         "net": "7.58",
+            //         "total": "7.58"
+            //       },
+            //       "free": {
+            //         "btc": "0.00498",
+            //         "ltc": "0",
+            //         "usd": "5.5314"
+            //       },
+            //       "freezed": {
+            //         "btc": "0",
+            //         "ltc": "0",
+            //         "usd": "0"
+            //       }
+            //     }
+            //   },
+            //   "result": true
+            //
+            // RequestType == Subscribe.
+            //
+            //   "info": {
+            //     "free": {
+            //       "btc": 0.01498,
+            //       "usd": 1.4137,
+            //       "ltc": 0
+            //     },
+            //     "freezed": {
+            //       "btc": 0,
+            //       "usd": 0,
+            //       "ltc": 0
+            //     }
+            //   }
+            if (_data == null)
+            {
+                // OkCoin sends an empty message without data in response to
+                // our subscription request.
+                return msg;
+            }
+            JToken funds = _data["info"];
+            if (msg.RequestType == RequestType.Poll) funds = funds["funds"];
+            JToken free = funds["free"];
+            JToken frozen = funds["freezed"];
+            Func<string, Asset> MakeAsset = (string name) =>
+                new Asset() { Free = free[name].AsDecimal(), Frozen = frozen[name].AsDecimal() };
+            msg.Balance = MakeAsset(Serialization.AsString(msg.Currency));
+            msg.Positions = new Dictionary<CoinType, Asset>();
+            foreach (CoinType c in Util.Enum.Values<CoinType>())
+            {
+                msg.Positions.Add(c, MakeAsset(Serialization.AsString(c)));
+            }
+            return msg;
+        }
+
         public IMessageIn Visit(PingResponse msg)
         {
             return msg;
@@ -345,6 +404,11 @@ namespace ExchangeApi.OkCoin.WebSocket
             };
             foreach (var currency in Util.Enum.Values<Currency>())
             {
+                foreach (var req in Util.Enum.Values<RequestType>())
+                {
+                    _messageCtors.Add(Channels.SpotPositions(currency, req),
+                                      () => new SpotPositionsUpdate() { Currency = currency, RequestType = req });
+                }
                 foreach (var product in Util.Enum.Values<ProductType>())
                 {
                     _messageCtors.Add(Channels.NewOrder(product, currency),

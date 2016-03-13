@@ -50,6 +50,7 @@ namespace Example
                 },
                 Products = new List<ExchangeApi.OkCoin.Product>()
                 {
+                    ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot"),
                     ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
                 },
                 EnableMarketData = false,
@@ -73,6 +74,10 @@ namespace Example
                 {
                     _log.Info("OnFuturePositionsUpdate(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
+                client.OnSpotPositionsUpdate += (TimestampedMsg<ExchangeApi.OkCoin.SpotPositionsUpdate> msg) =>
+                {
+                    _log.Info("OnSpotPositionsUpdate(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
                 Action<TimestampedMsg<ExchangeApi.OkCoin.NewOrderResponse>> OnNewOrder = msg =>
                 {
                     // Null msg means timeout.
@@ -90,7 +95,7 @@ namespace Example
                     Amount = new ExchangeApi.OkCoin.Amount()
                     {
                         Side = ExchangeApi.OkCoin.Side.Buy,
-                        Price = 400.90m,
+                        Price = 420.90m,
                         Quantity = 1m,
                     },
                     Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
@@ -108,8 +113,8 @@ namespace Example
         {
             var keys = new ExchangeApi.OkCoin.Keys()
             {
-                ApiKey = "3fa2daed-8c56-4eba-ba86-061650232fa0",
-                SecretKey = "9343D8C14530A292A5501CD38107E097",
+                ApiKey = "MY_API_KEY",
+                SecretKey = "MY_SECRET_KEY",
             };
             string endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom.REST;
             using (var client = new ExchangeApi.OkCoin.REST.RestClient(endpoint, keys))

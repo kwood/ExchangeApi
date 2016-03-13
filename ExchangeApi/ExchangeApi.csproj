@@ -30,8 +30,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Conditions, Version=2.0.0.2, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Conditions.2.0.0\lib\portable-net45+win+wpa81+wp80+MonoAndroid10+MonoTouch10\Conditions.dll</HintPath>
+    <Reference Include="Conditions, Version=2.0.1.19, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Conditions.2.0.1\lib\portable-net45+win+wpa81+wp80+MonoAndroid10+MonoTouch10\Conditions.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -39,7 +39,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NLog.4.2.2\lib\net45\NLog.dll</HintPath>
+      <HintPath>..\packages\NLog.4.2.3\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="StatePrinter, Version=2.1.0.0, Culture=neutral, PublicKeyToken=693eec472ad792e3, processorArchitecture=MSIL">
@@ -70,7 +70,7 @@
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="Infra\Turnstile.cs" />
     <Compile Include="OkCoin\Authenticator.cs" />
-    <Compile Include="OkCoin\PositionPoller.cs" />
+    <Compile Include="OkCoin\FuturePositionPoller.cs" />
     <Compile Include="OkCoin\REST\ErrorCode.cs" />
     <Compile Include="OkCoin\Settlement.cs" />
     <Compile Include="OkCoin\WebSocket\Channels.cs" />

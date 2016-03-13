@@ -73,6 +73,18 @@ namespace ExchangeApi.OkCoin.WebSocket
             return "ok_real_future_positions";
         }
 
+        public static string SpotPositions(Currency c, RequestType req)
+        {
+            switch (req)
+            {
+                case RequestType.Poll:
+                    return String.Format("ok_spot{0}_userinfo", Serialization.AsString(c));
+                case RequestType.Subscribe:
+                    return String.Format("ok_sub_spot{0}_userinfo", Serialization.AsString(c));
+            }
+            throw new Exception("Invalid RequestType: " + req);
+        }
+
         public static string FromMessage(IMessageIn msg)
         {
             return msg.Visit(new MessageChannel());
@@ -117,6 +129,11 @@ namespace ExchangeApi.OkCoin.WebSocket
                 return FuturePositions();
             }
 
+            public string Visit(SpotPositionsRequest msg)
+            {
+                return SpotPositions(msg.Currency, msg.RequestType);
+            }
+
             public string Visit(PingRequest msg)
             {
                 return "<SYNTHETIC-PING-CHANNEL>";
@@ -152,6 +169,11 @@ namespace ExchangeApi.OkCoin.WebSocket
             public string Visit(FuturePositionsUpdate msg)
             {
                 return FuturePositions();
+            }
+
+            public string Visit(SpotPositionsUpdate msg)
+            {
+                return SpotPositions(msg.Currency, msg.RequestType);
             }
 
             public string Visit(PingResponse msg)

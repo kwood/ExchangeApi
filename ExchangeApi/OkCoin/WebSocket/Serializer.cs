@@ -92,6 +92,11 @@ namespace ExchangeApi.OkCoin.WebSocket
             return AuthenticatedRequest(msg, null);
         }
 
+        public string Visit(SpotPositionsRequest msg)
+        {
+            return AuthenticatedRequest(msg, null);
+        }
+
         public string Visit(PingRequest msg)
         {
             return "{\"event\":\"ping\"}";

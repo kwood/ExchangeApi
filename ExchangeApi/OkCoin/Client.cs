@@ -58,12 +58,15 @@ namespace ExchangeApi.OkCoin
         // 30 seconds, we close the connection and open a new one. Pinging every 10 seconds
         // works well with that.
         static readonly TimeSpan PingPeriod = TimeSpan.FromSeconds(10);
+        // How often to poll for spot positions.
+        static readonly TimeSpan SpotPositionPollPeriod = TimeSpan.FromSeconds(60);
 
         readonly Config _cfg;
         readonly DurableConnection<IMessageIn, IMessageOut> _connection;
         readonly WebSocket.Gateway _gateway;
         readonly PeriodicAction _pinger;
-        readonly PositionPoller _positionPoller;
+        readonly FuturePositionPoller _futurePositionPoller;
+        readonly PeriodicAction _spotPositionPoller;
 
         public Client(Config cfg)
         {
@@ -88,16 +91,17 @@ namespace ExchangeApi.OkCoin
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
             _pinger = new PeriodicAction(_cfg.Scheduler, PingPeriod, PingPeriod, Ping);
-            _positionPoller = new PositionPoller(
+            _futurePositionPoller = new FuturePositionPoller(
                 _cfg.Endpoint.REST, _cfg.Keys, _cfg.Scheduler,
                 _cfg.EnableTrading ? _cfg.Products : new List<Product>());
-            _positionPoller.OnFuturePositions += msg => OnFuturePositionsUpdate?.Invoke(msg);
+            _futurePositionPoller.OnFuturePositions += msg => OnFuturePositionsUpdate?.Invoke(msg);
+            _spotPositionPoller = new PeriodicAction(_cfg.Scheduler, SpotPositionPollPeriod, SpotPositionPollPeriod, PollSpotPositions);
         }
 
         // Asynchronous. Events may fire even after Dispose() returns.
         public void Dispose()
         {
-            _positionPoller.Dispose();
+            _futurePositionPoller.Dispose();
             _pinger.Dispose();
             _connection.Dispose();
         }
@@ -105,17 +109,17 @@ namespace ExchangeApi.OkCoin
         // See comments in DurableSubscriber.
         public void Connect()
         {
-            _positionPoller.Connect();
+            _futurePositionPoller.Connect();
             _connection.Connect();
         }
         public void Disconnect()
         {
             _connection.Disconnect();
-            _positionPoller.Disconnect();
+            _futurePositionPoller.Disconnect();
         }
         public void Reconnect()
         {
-            _positionPoller.Connect();
+            _futurePositionPoller.Connect();
             _connection.Reconnect();
         }
 
@@ -142,7 +146,7 @@ namespace ExchangeApi.OkCoin
         // After T0 is delivered, the following T1 is delivered immediately.
         public event Action<TimestampedMsg<FuturePositionsUpdate>> OnFuturePositionsUpdate;
 
-        // TODO: Add OnSpotPositionsUpdate.
+        public event Action<TimestampedMsg<SpotPositionsUpdate>> OnSpotPositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread.
         // Its argument will null on timeout.
@@ -242,7 +246,15 @@ namespace ExchangeApi.OkCoin
                     Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
                               consumeFirst: true);
                 }
-                if (trading.Select(p => p.Item1 == ProductType.Future).Any())
+                foreach (Currency c in _cfg.Products.Where(p => p.ProductType == ProductType.Spot)
+                                           .Select(p => p.Currency).GroupBy(p => p).Select(p => p.First()))
+                {
+                    Subscribe(reader, writer, new SpotPositionsRequest() {
+                        Currency = c, RequestType = RequestType.Subscribe }, consumeFirst: true);
+                    Subscribe(reader, writer, new SpotPositionsRequest() {
+                        Currency = c, RequestType = RequestType.Poll }, consumeFirst: false);
+                }
+                if (trading.Where(p => p.Item1 == ProductType.Future).Any())
                 {
                     Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
                 }
@@ -252,7 +264,7 @@ namespace ExchangeApi.OkCoin
                 // delivered later. However, when such reversion happens, there is aways an
                 // incremental position update for T1 in the queue as well. This means that whenever
                 // positions get delivered out of order, the mistake gets immediately corrected.
-                _positionPoller.PollNow();
+                _futurePositionPoller.PollNow();
             }
         }
 
@@ -263,6 +275,36 @@ namespace ExchangeApi.OkCoin
                 if (writer == null) return;
                 try { writer.Send(new PingRequest()); }
                 catch (Exception e) { _log.Info(e, "Can't send ping. No biggie."); }
+            }
+        }
+
+        void PollSpotPositions()
+        {
+            using (var writer = _connection.TryLock())
+            {
+                if (writer == null) return;
+                IEnumerable<Currency> currencies = _cfg.Products
+                    .Where(p => p.ProductType == ProductType.Spot)
+                    .Select(p => p.Currency)
+                    .GroupBy(p => p)
+                    .Select(p => p.First());
+                foreach (Currency c in currencies)
+                {
+                    var req = new SpotPositionsRequest()
+                    {
+                        Currency = c,
+                        RequestType = RequestType.Poll,
+                    };
+                    try
+                    {
+                        writer.Send(req);
+                    }
+                    catch (Exception e)
+                    {
+                        _log.Warn(e, "Can't poll spot positions.");
+                        return;
+                    }
+                }
             }
         }
 
@@ -308,6 +350,20 @@ namespace ExchangeApi.OkCoin
                 catch (Exception e)
                 {
                     _log.Warn(e, "Ignoring exception from OnFuturePositionsUpdate");
+                }
+                return null;
+            }
+
+            public object Visit(SpotPositionsUpdate msg)
+            {
+                try
+                {
+                    _client.OnSpotPositionsUpdate?.Invoke(
+                        new TimestampedMsg<SpotPositionsUpdate>() { Received = _received, Value = msg });
+                }
+                catch (Exception e)
+                {
+                    _log.Warn(e, "Ignoring exception from OnSpotPositionsUpdate");
                 }
                 return null;
             }

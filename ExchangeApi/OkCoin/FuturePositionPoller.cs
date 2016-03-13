@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.OkCoin
 {
-    class PositionPoller : IDisposable
+    class FuturePositionPoller : IDisposable
     {
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
@@ -20,7 +20,7 @@ namespace ExchangeApi.OkCoin
         readonly PeriodicAction[] _pollers;
         volatile bool _connected = false;
 
-        public PositionPoller(string restEndpoint, Keys keys, Scheduler scheduler, IEnumerable<Product> products)
+        public FuturePositionPoller(string restEndpoint, Keys keys, Scheduler scheduler, IEnumerable<Product> products)
         {
             _restClient = new REST.RestClient(restEndpoint, keys);
             _products = products

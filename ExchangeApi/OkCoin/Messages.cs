@@ -20,6 +20,7 @@ namespace ExchangeApi.OkCoin
         T Visit(CancelOrderRequest msg);
         T Visit(MyOrdersRequest msg);
         T Visit(FuturePositionsRequest msg);
+        T Visit(SpotPositionsRequest msg);
         T Visit(PingRequest msg);
     }
 
@@ -37,6 +38,7 @@ namespace ExchangeApi.OkCoin
         T Visit(CancelOrderResponse msg);
         T Visit(MyOrderUpdate msg);
         T Visit(FuturePositionsUpdate msg);
+        T Visit(SpotPositionsUpdate msg);
         T Visit(PingResponse msg);
     }
 
@@ -506,6 +508,50 @@ namespace ExchangeApi.OkCoin
         // The triplet {ContractId, PositionType, Leverage} is unique among the elements
         // of Positions.
         public List<FuturePosition> Positions { get; set; }
+
+        public T Visit<T>(IVisitorIn<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public enum RequestType
+    {
+        Poll,
+        Subscribe,
+    }
+
+    public class SpotPositionsRequest : Util.Printable<SpotPositionsRequest>, IMessageOut
+    {
+        public Currency Currency { get; set; }
+        public RequestType RequestType { get; set; }
+
+        public T Visit<T>(IVisitorOut<T> v)
+        {
+            return v.Visit(this);
+        }
+    }
+
+    public class Asset : Util.Printable<Asset>
+    {
+        public decimal Free { get; set; }
+        public decimal Frozen { get; set; }
+    }
+
+    public class SpotPositionsUpdate : Util.Printable<SpotPositionsUpdate>, IMessageIn
+    {
+        public ErrorCode? Error { get; set; }
+
+        // Base currency. USD for okcoin.com, CNY for okcoin.cn.
+        public Currency Currency { get; set; }
+        // How much money we have, denominated in the base currency specified above.
+        public Asset Balance { get; set; }
+
+        // The coins we own. Not null. Values aren't null. If there is no value for a key (e.g., for Ltc),
+        // it's equivalent to Free = 0 and Frozen = 0.
+        public Dictionary<CoinType, Asset> Positions { get; set; }
+
+        public RequestType RequestType { get; set; }
 
         public T Visit<T>(IVisitorIn<T> v)
         {
