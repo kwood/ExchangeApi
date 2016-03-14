@@ -49,7 +49,7 @@ namespace ExchangeApi.OkCoin.WebSocket
 
         public IMessageIn Visit(ProductTrades msg)
         {
-            Condition.Requires(_data, "data").IsNotNull();
+            if (_data == null) return msg;
             // [["78270746", "431.3", "0.01", "22:02:41", "ask"], ...]
             //
             // Each element is [TradeId, Price, Quantity, Time, Side].
@@ -73,7 +73,7 @@ namespace ExchangeApi.OkCoin.WebSocket
 
         public IMessageIn Visit(ProductDepth msg)
         {
-            Condition.Requires(_data, "data").IsNotNull();
+            if (_data == null) return msg;
             // {
             //   "bids": [[432.76, 3.55],...],
             //   "asks": [[440.01, 3.15],...],
