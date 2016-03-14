@@ -16,6 +16,7 @@ namespace ExchangeApi.Util
         public string Print(List<Token> tokens)
         {
             tokens = new UnusedReferencesTokenFilter().FilterUnusedReferences(tokens);
+            tokens = UnfuckupSimpleDicts(tokens);
             var output = new StringBuilder();
             for (int i = 0; i != tokens.Count; ++i)
             {
@@ -25,6 +26,34 @@ namespace ExchangeApi.Util
                     WriteToken(tokens[i], tokens[i + 1], output);
             }
             return output.ToString();
+        }
+
+        // Stateprinter has special logic to handle dictinaries with simple key types.
+        // It forces you to print such dictionaries as dict[key] = value, dict[key] = value, etc.
+        // We want it to look like dict = ([key] = value, [key] = value), just like lists.
+        public List<Token> UnfuckupSimpleDicts(List<Token> tokens)
+        {
+            var res = new List<Token>();
+            for (int i = 0; i != tokens.Count; ++i)
+            {
+                if (tokens[i].Tokenkind == TokenType.StartEnumeration &&
+                    i != 0 && i != tokens.Count - 1 &&
+                    tokens[i - 1].Tokenkind != TokenType.FieldnameWithTypeAndReference)
+                {
+                    if (tokens[i + 1].Tokenkind == TokenType.EndEnumeration)
+                    {
+                        ++i;
+                        continue;
+                    }
+                    Field next = tokens[i + 1].Field;
+                    if (next != null && next.SimpleKeyInArrayOrDictionary != null && next.Name != null)
+                    {
+                        res.Add(new Token(TokenType.FieldnameWithTypeAndReference, new Field(next.Name)));
+                    }
+                }
+                res.Add(tokens[i]);
+            }
+            return res;
         }
 
         void WriteToken(Token token, Token next, StringBuilder output)
