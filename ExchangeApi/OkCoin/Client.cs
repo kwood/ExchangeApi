@@ -54,6 +54,8 @@ namespace ExchangeApi.OkCoin
 
         // Wait at most this long for the first reply when subscribing to a channel.
         static readonly TimeSpan SubscribeTimeout = TimeSpan.FromSeconds(10);
+        // Wait at most this long when cancalling an order during connection.
+        static readonly TimeSpan CancelTimeout = TimeSpan.FromSeconds(10);
         // Send pings every this often. If we don't receive anything from the remote side in
         // 30 seconds, we close the connection and open a new one. Pinging every 10 seconds
         // works well with that.
@@ -220,15 +222,40 @@ namespace ExchangeApi.OkCoin
             }
         }
 
+        void CancelOrder(IReader<IMessageIn> reader, IWriter<IMessageOut> writer, Product product, long orderId)
+        {
+            var req = new CancelOrderRequest() { Product = product, OrderId = orderId };
+            writer.Send(req);
+            var deadline = DateTime.UtcNow + CancelTimeout;
+            while (true)
+            {
+                TimestampedMsg<IMessageIn> resp;
+                if (!reader.PeekWithTimeout(DateTime.UtcNow - deadline, out resp))
+                {
+                    throw new Exception("Timed out waiting for response to our order cancellation request");
+                }
+                var reply = resp.Value as CancelOrderResponse;
+                if (reply != null)
+                {
+                    if (reply.Error.HasValue &&
+                        reply.Error.Value != ErrorCode.OrderDoesNotExist1 &&
+                        reply.Error.Value != ErrorCode.OrderDoesNotExist2)
+                    {
+                        throw new Exception(String.Format("Unable to cancel order {0}: {1}", orderId, reply));
+                    }
+                    // We need to consume the response so that it doesn't confuse Gateway.
+                    reader.Consume();
+                    break;
+                }
+                reader.Skip();
+            }
+        }
+
         void OnConnection(IReader<IMessageIn> reader, IWriter<IMessageOut> writer)
         {
             if (_cfg.EnableMarketData)
             {
-                // Products without duplicates.
-                var products = _cfg.Products
-                    .GroupBy(p => p.Instrument)
-                    .Select(p => p.First());
-                foreach (Product p in products)
+                foreach (Product p in _cfg.Products.DedupBy(p => p.Instrument))
                 {
                     Subscribe(reader, writer, new MarketDataRequest() { Product = p, MarketData = MarketData.Depth60 },
                               consumeFirst: false);
@@ -241,15 +268,14 @@ namespace ExchangeApi.OkCoin
                 // {ProductType, Currency} pairs without duplicates.
                 var trading = _cfg.Products
                     .Select(p => Tuple.Create(p.ProductType, p.Currency))
-                    .GroupBy(p => p)
-                    .Select(p => p.First());
+                    .Dedup();
                 foreach (var p in trading)
                 {
                     Subscribe(reader, writer, new MyOrdersRequest() { ProductType = p.Item1, Currency = p.Item2 },
                               consumeFirst: true);
                 }
                 foreach (Currency c in _cfg.Products.Where(p => p.ProductType == ProductType.Spot)
-                                           .Select(p => p.Currency).GroupBy(p => p).Select(p => p.First()))
+                                           .Select(p => p.Currency).Dedup())
                 {
                     Subscribe(reader, writer, new SpotPositionsRequest() {
                         Currency = c, RequestType = RequestType.Subscribe }, consumeFirst: true);
@@ -259,6 +285,13 @@ namespace ExchangeApi.OkCoin
                 if (trading.Where(p => p.Item1 == ProductType.Future).Any())
                 {
                     Subscribe(reader, writer, new FuturePositionsRequest(), consumeFirst: true);
+                }
+                foreach (Product p in _cfg.Products.DedupBy(p => p.Instrument))
+                {
+                    foreach (long orderId in _restClient.OpenOrders(p))
+                    {
+                        CancelOrder(reader, writer, p, orderId);
+                    }
                 }
                 // Note that positions may be delivered to OnFuturePositionsUpdate out of order.
                 // Via polling we may get positions that were valid at time T1; at the same time,
@@ -288,8 +321,7 @@ namespace ExchangeApi.OkCoin
                 IEnumerable<Currency> currencies = _cfg.Products
                     .Where(p => p.ProductType == ProductType.Spot)
                     .Select(p => p.Currency)
-                    .GroupBy(p => p)
-                    .Select(p => p.First());
+                    .Dedup();
                 foreach (Currency c in currencies)
                 {
                     var req = new SpotPositionsRequest()

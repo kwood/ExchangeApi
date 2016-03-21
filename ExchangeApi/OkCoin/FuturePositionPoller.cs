@@ -28,8 +28,7 @@ namespace ExchangeApi.OkCoin
             _products = products
                 .Where(p => p.ProductType == ProductType.Future)
                 .Select(p => Tuple.Create(p.Currency, p.CoinType))
-                .GroupBy(p => p)
-                .Select(p => p.First())
+                .Dedup()
                 .ToArray();
 
             _pollers = new PeriodicAction[_products.Length];
