@@ -85,6 +85,52 @@ namespace ExchangeApi.OkCoin.REST
             }
         }
 
+        public HashSet<long> FutureOrders(Future future)
+        {
+            try
+            {
+                var res = new HashSet<long>();
+                for (int page = 0; true; ++page)
+                {
+                    var param = new KV[]
+                    {
+                        new KV("symbol", Serialization.AsString(future.CoinType, future.Currency)),
+                        new KV("contract_type", Serialization.AsString(future.FutureType)),
+                        new KV("status", "1"),        // unfilled orders
+                        new KV("order_id", "-1"),     // all matching orders
+                        new KV("page_length", "50"),  // this is the maximum supported value
+                        new KV("current_page", page.ToString()),
+                    };
+                    string content = SendRequest(HttpMethod.Post, "future_order_info.do", Authenticated(param));
+                    var root = JObject.Parse(content);
+                    CheckErrorCode(root);
+
+                    int total_orders = 0;
+                    int new_orders = 0;
+                    foreach (JObject data in (JArray)root["orders"])
+                    {
+                        int status = (int)data["status"];
+                        // 0 is unfilled, 1 is partially filled.
+                        if (status == 0 || status == 1)
+                        {
+                            if (res.Add((long)data["order_id"])) ++new_orders;
+                        }
+                        ++total_orders;
+                    }
+                    // Pagination on OKCoin is weird. They don't tell us if there are more results, so we have to guess.
+                    // We can't just go over the pages until we get an empty one -- they always return the last page if
+                    // current_page is too large.
+                    if (total_orders < 50 || new_orders == 0) break;
+                }
+                return res;
+            }
+            catch (Exception e)
+            {
+                _log.Warn(e, "RestClient.FutureOrders() failed");
+                throw;
+            }
+        }
+
         // Verifies that FutureTypeFromContractId(contractId) matches `actual`.
         void VerifyFutureType(FutureType actual, string contractId)
         {
