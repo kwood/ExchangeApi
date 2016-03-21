@@ -85,7 +85,21 @@ namespace ExchangeApi.OkCoin.REST
             }
         }
 
-        public HashSet<long> FutureOrders(Future future)
+        public HashSet<long> OpenOrders(Product product)
+        {
+            Condition.Requires(product, "product").IsNotNull();
+            switch (product.ProductType)
+            {
+                case ProductType.Spot:
+                    return SpotOrders((Spot)product);
+                case ProductType.Future:
+                    return FutureOrders((Future)product);
+                default:
+                    throw new Exception("Unknown product type: " + product);
+            }
+        }
+
+        HashSet<long> FutureOrders(Future future)
         {
             try
             {
@@ -131,7 +145,7 @@ namespace ExchangeApi.OkCoin.REST
             }
         }
 
-        public HashSet<long> SpotOrders(Spot spot)
+        HashSet<long> SpotOrders(Spot spot)
         {
             try
             {
