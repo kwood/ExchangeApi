@@ -131,6 +131,35 @@ namespace ExchangeApi.OkCoin.REST
             }
         }
 
+        public HashSet<long> SpotOrders(Spot spot)
+        {
+            try
+            {
+                var res = new HashSet<long>();
+                var param = new KV[]
+                {
+                    new KV("symbol", Serialization.AsString(spot.CoinType, spot.Currency)),
+                    new KV("order_id", "-1")  // all open orders
+                };
+                string content = SendRequest(HttpMethod.Post, "order_info.do", Authenticated(param));
+                var root = JObject.Parse(content);
+                CheckErrorCode(root);
+
+                foreach (JObject data in (JArray)root["orders"])
+                {
+                    int status = (int)data["status"];
+                    // 0 is unfilled, 1 is partially filled.
+                    if (status == 0 || status == 1) res.Add((long)data["order_id"]);
+                }
+                return res;
+            }
+            catch (Exception e)
+            {
+                _log.Warn(e, "RestClient.SpotOrders() failed");
+                throw;
+            }
+        }
+
         // Verifies that FutureTypeFromContractId(contractId) matches `actual`.
         void VerifyFutureType(FutureType actual, string contractId)
         {
