@@ -15,6 +15,8 @@ namespace ExchangeApi.OkCoin.REST
 {
     public class RestClient : IDisposable
     {
+        // This is the maximum allowed by OKCoin.
+        static readonly int MaxOrdersPerPage = 50;
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         readonly Keys _keys;
@@ -92,17 +94,7 @@ namespace ExchangeApi.OkCoin.REST
                 var res = new HashSet<long>();
                 for (int page = 0; true; ++page)
                 {
-                    var param = new KV[]
-                    {
-                        new KV("symbol", Serialization.AsString(future.CoinType, future.Currency)),
-                        new KV("contract_type", Serialization.AsString(future.FutureType)),
-                        new KV("status", "1"),        // unfilled orders
-                        new KV("order_id", "-1"),     // all matching orders
-                        new KV("page_length", "50"),  // this is the maximum supported value
-                        new KV("current_page", page.ToString()),
-                    };
-                    string content = SendRequest(HttpMethod.Post, "future_order_info.do", Authenticated(param));
-                    var root = JObject.Parse(content);
+                    var root = JObject.Parse(QueryFutureOrders(future, page));
                     CheckErrorCode(root);
 
                     int total_orders = 0;
@@ -120,7 +112,7 @@ namespace ExchangeApi.OkCoin.REST
                     // Pagination on OKCoin is weird. They don't tell us if there are more results, so we have to guess.
                     // We can't just go over the pages until we get an empty one -- they always return the last page if
                     // current_page is too large.
-                    if (total_orders < 50 || new_orders == 0) break;
+                    if (total_orders < MaxOrdersPerPage || new_orders == 0) break;
                 }
                 return res;
             }
@@ -129,6 +121,20 @@ namespace ExchangeApi.OkCoin.REST
                 _log.Warn(e, "RestClient.FutureOrders() failed");
                 throw;
             }
+        }
+
+        public string QueryFutureOrders(Future future, int page_num)
+        {
+            var param = new KV[]
+            {
+                new KV("symbol", Serialization.AsString(future.CoinType, future.Currency)),
+                new KV("contract_type", Serialization.AsString(future.FutureType)),
+                new KV("status", "1"),        // unfilled orders
+                new KV("order_id", "-1"),     // all matching orders
+                new KV("page_length", "50"),  // this is the maximum supported value
+                new KV("current_page", page_num.ToString()),
+            };
+            return SendRequest(HttpMethod.Post, "future_order_info.do", Authenticated(param));
         }
 
         // Verifies that FutureTypeFromContractId(contractId) matches `actual`.
