@@ -44,5 +44,15 @@ namespace ExchangeApi.Util
         {
             return new HashSet<T>(seq);
         }
+
+        public static IEnumerable<T> DedupBy<T, U>(this IEnumerable<T> seq, Func<T, U> by)
+        {
+            return seq.GroupBy(by).Select(g => g.First());
+        }
+
+        public static IEnumerable<T> Dedup<T>(this IEnumerable<T> seq)
+        {
+            return seq.DedupBy(x => x);
+        }
     }
 }
