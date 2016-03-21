@@ -64,6 +64,7 @@ namespace ExchangeApi.OkCoin
         readonly Config _cfg;
         readonly DurableConnection<IMessageIn, IMessageOut> _connection;
         readonly WebSocket.Gateway _gateway;
+        readonly REST.RestClient _restClient;
         readonly PeriodicAction _pinger;
         readonly FuturePositionPoller _futurePositionPoller;
         readonly PeriodicAction _spotPositionPoller;
@@ -90,9 +91,10 @@ namespace ExchangeApi.OkCoin
             _gateway = new WebSocket.Gateway(_connection);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
+            _restClient = new REST.RestClient(_cfg.Endpoint.REST, _cfg.Keys);
             _pinger = new PeriodicAction(_cfg.Scheduler, PingPeriod, PingPeriod, Ping);
             _futurePositionPoller = new FuturePositionPoller(
-                _cfg.Endpoint.REST, _cfg.Keys, _cfg.Scheduler,
+                _restClient, _cfg.Scheduler,
                 _cfg.EnableTrading ? _cfg.Products : new List<Product>());
             _futurePositionPoller.OnFuturePositions += msg => OnFuturePositionsUpdate?.Invoke(msg);
             _spotPositionPoller = new PeriodicAction(_cfg.Scheduler, SpotPositionPollPeriod, SpotPositionPollPeriod, PollSpotPositions);

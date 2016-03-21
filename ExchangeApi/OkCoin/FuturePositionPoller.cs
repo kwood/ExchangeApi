@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Conditions;
 
 namespace ExchangeApi.OkCoin
 {
@@ -20,9 +21,10 @@ namespace ExchangeApi.OkCoin
         readonly PeriodicAction[] _pollers;
         volatile bool _connected = false;
 
-        public FuturePositionPoller(string restEndpoint, Keys keys, Scheduler scheduler, IEnumerable<Product> products)
+        public FuturePositionPoller(REST.RestClient restClient, Scheduler scheduler, IEnumerable<Product> products)
         {
-            _restClient = new REST.RestClient(restEndpoint, keys);
+            Condition.Requires(restClient, "restClient").IsNotNull();
+            _restClient = restClient;
             _products = products
                 .Where(p => p.ProductType == ProductType.Future)
                 .Select(p => Tuple.Create(p.Currency, p.CoinType))
