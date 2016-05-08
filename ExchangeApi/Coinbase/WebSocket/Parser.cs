@@ -94,24 +94,6 @@ namespace ExchangeApi.Coinbase.WebSocket
             return msg;
         }
 
-        static DateTime ParseTime(string s)
-        {
-            // C# doesn't have a parser for ISO 8611 in the standard library.
-            // Here we rely on the fact that Coinbase is using one specific format allowed by the ISO.
-            // Example: 2016-05-08T14:43:27.13292Z.
-            try
-            {
-                return DateTime.ParseExact(s, "yyyy-MM-ddTHH:mm:ss.FFFFFFZ",
-                                           CultureInfo.InvariantCulture,
-                                           DateTimeStyles.AdjustToUniversal);
-            }
-            catch (Exception)
-            {
-                _log.Error("Can't parse date: " + s);
-                throw;
-            }
-        }
-
         static Side ParseSide(string s)
         {
             if (s == "buy") return Side.Buy;
