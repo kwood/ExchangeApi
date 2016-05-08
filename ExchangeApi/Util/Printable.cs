@@ -15,6 +15,10 @@ namespace ExchangeApi.Util
         public string Print(List<Token> tokens)
         {
             tokens = new UnusedReferencesTokenFilter().FilterUnusedReferences(tokens);
+            // Remove fields with null values. They aren't interesting.
+            tokens = tokens
+                .Where(token => token.Tokenkind != TokenType.SimpleFieldValue || token.Value != "null")
+                .ToList();
             var output = new StringBuilder();
             for (int i = 0; i != tokens.Count; ++i)
             {
@@ -43,6 +47,7 @@ namespace ExchangeApi.Util
                 case TokenType.StartDict:
                     output.Append("(");
                     break;
+
                 case TokenType.EndList:
                 case TokenType.EndDict:
                     output.Append(")");
