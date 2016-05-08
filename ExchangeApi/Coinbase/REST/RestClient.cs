@@ -9,7 +9,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExchangeApi.Coinbase
+namespace ExchangeApi.Coinbase.REST
 {
     // See https://docs.exchange.coinbase.com/#api.
     public class RestClient : IDisposable
