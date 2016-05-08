@@ -119,19 +119,16 @@ namespace Example
             string endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom.REST;
             using (var client = new ExchangeApi.OkCoin.REST.RestClient(endpoint, keys))
             {
-                var currency = ExchangeApi.OkCoin.Currency.Usd;
-                var coin = ExchangeApi.OkCoin.CoinType.Btc;
-                foreach (var elem in client.FuturePositions(currency, coin))
-                {
-                    _log.Info("Positions for {0}-{1}-{2}: ({3})", coin, currency, elem.Key,
-                              String.Join(", ", elem.Value.Select(p => p.ToString())));
-                }
+                var future = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week");
+                _log.Info("Open future orders: {0}", string.Join(", ", client.OpenOrders(future).Select(id => id.ToString())));
+                var spot = ExchangeApi.OkCoin.Spot.FromInstrument("btc_usd_spot");
+                _log.Info("Open spot orders: {0}", string.Join(", ", client.OpenOrders(spot).Select(id => id.ToString())));
             }
         }
 
         static void CoinbaseRest()
         {
-            using (var client = new ExchangeApi.Coinbase.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
+            using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
             {
                 ExchangeApi.Coinbase.OrderBook book = client.GetProductOrderBook("BTC-USD");
                 _log.Info("Order book sequence: {0}", book.Sequence);
