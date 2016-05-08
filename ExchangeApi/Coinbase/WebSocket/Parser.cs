@@ -110,8 +110,8 @@ namespace ExchangeApi.Coinbase.WebSocket
 
         static DoneReason ParseDoneReason(string s)
         {
-            if (s == "filled") return DoneReason.Filled;
             if (s == "canceled") return DoneReason.Canceled;
+            if (s == "filled") return DoneReason.Filled;
             throw new ArgumentException("Unable to parse done reason: " + s);
         }
     }
