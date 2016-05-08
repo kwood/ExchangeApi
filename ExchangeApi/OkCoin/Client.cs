@@ -153,7 +153,7 @@ namespace ExchangeApi.OkCoin
         public event Action<TimestampedMsg<SpotPositionsUpdate>> OnSpotPositionsUpdate;
 
         // Action `done` will be called exactly once in the scheduler thread.
-        // Its argument will null on timeout.
+        // Its argument will be null on timeout.
         //
         // Send() throws iif req is null. It doesn't block.
         public void Send(NewSpotRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
