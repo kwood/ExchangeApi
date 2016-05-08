@@ -1,9 +1,11 @@
 ﻿using Conditions;
 using ExchangeApi.Util;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -44,35 +46,43 @@ namespace ExchangeApi.Coinbase.REST
         public OrderBook GetProductOrderBook(string product)
         {
             Condition.Requires(product, "product").IsNotNullOrEmpty();
+            var book = new OrderBook() { Time = GetServerTime() };
             string content = SendRequest(HttpMethod.Get, String.Format("/products/{0}/book?level=3", product));
             // {
             //   "sequence": 12345,
             //   "bids": [[ "295.96", "0.05", "3b0f1225-7f84-490b-a29f-0faef9de823a" ]...],
             //   "asks": [[ "296.12", "0.17", "da863862-25f4-4868-ac41-005d11ab0a5f" ]...],
             // }
-            JObject root = JObject.Parse(content);
-            var res = new OrderBook() { Sequence = (long)root["sequence"], Orders = new List<Order>() };
-            Action<string, Side> ParseOrders = (field, side) =>
+            JObject root = Json.ParseObject(content);
+            Func<JArray, List<Order>> ParseOrders = (orders) =>
             {
-                JArray orders = (JArray)root[field];
                 Condition.Requires(orders, "orders").IsNotNull();
+                var res = new List<Order>();
                 foreach (var order in orders)
                 {
-                    res.Orders.Add(new Order()
+                    res.Add(new Order()
                     {
                         Id = (string)order[2],
-                        Amount = new Amount()
-                        {
-                            Side = side,
-                            Price = order[0].AsDecimal(),
-                            Quantity = order[1].AsDecimal(),
-                        }
+                        Price = (decimal)order[0],
+                        Quantity = (decimal)order[1],
                     });
                 }
+                return res;
             };
-            ParseOrders("bids", Side.Buy);
-            ParseOrders("asks", Side.Sell);
-            return res;
+            book.Sequence = (long)root["sequence"];
+            book.Bids = ParseOrders((JArray)root["bids"]);
+            book.Asks = ParseOrders((JArray)root["asks"]);
+            return book;
+        }
+
+        DateTime GetServerTime()
+        {
+            string content = SendRequest(HttpMethod.Get, "/time");
+            // {
+            //   "iso": "2015-01-07T23:47:25.201Z",
+            //   "epoch": 1420674445.201
+            // }
+            return (DateTime)Json.ParseObject(content)["iso"];
         }
 
         public void Dispose()
