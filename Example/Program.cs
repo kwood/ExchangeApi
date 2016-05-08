@@ -138,7 +138,8 @@ namespace Example
             {
                 client.OnOrderBook += (TimestampedMsg<ExchangeApi.Coinbase.OrderBook> msg) =>
                 {
-                    _log.Info("OnOrderBook(IsLast={0}): {1} order(s)", !client.Scheduler.HasReady(), msg.Value.Orders.Count);
+                    _log.Info("OnOrderBook(IsLast={0}): {1} bid(s), {2} ask(s)",
+                              !client.Scheduler.HasReady(), msg.Value.Bids.Count, msg.Value.Asks.Count);
                 };
                 client.OnOrderReceived += (TimestampedMsg<ExchangeApi.Coinbase.OrderReceived> msg) =>
                 {
@@ -161,8 +162,8 @@ namespace Example
                     _log.Info("OnOrderChange(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
                 client.Connect();
-                Thread.Sleep(5000);
-                while (true) Thread.Sleep(5000);
+                Thread.Sleep(60000);
+                // while (true) Thread.Sleep(5000);
             }
             Thread.Sleep(2000);
         }
@@ -173,7 +174,7 @@ namespace Example
             {
                 ExchangeApi.Coinbase.OrderBook book = client.GetProductOrderBook("BTC-USD");
                 _log.Info("Order book sequence: {0}", book.Sequence);
-                _log.Info("Order book has {0} order(s)", book.Orders.Count);
+                _log.Info("Order book has {0} bids(s) and {1} ask(s)", book.Bids.Count, book.Asks.Count);
             }
         }
 
