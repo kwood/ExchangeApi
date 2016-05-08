@@ -141,9 +141,9 @@ namespace Example
             try
             {
                 // RawConnection();
-                OkCoinClient();
+                // OkCoinClient();
                 // OkCoinRest();
-                // CoinbaseRest();
+                CoinbaseRest();
             }
             catch (Exception e)
             {
