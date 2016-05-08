@@ -69,6 +69,10 @@ namespace ExchangeApi.Coinbase
 
     public class SubscribeRequest : Util.Printable<SubscribeRequest>, IMessageOut
     {
+        // See https://api.exchange.coinbase.com/products for the full list of products.
+        // One example is "BTC-USD".
+        public string ProductId;
+
         public T Visit<T>(IVisitorOut<T> v)
         {
             return v.Visit(this);

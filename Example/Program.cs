@@ -126,6 +126,47 @@ namespace Example
             }
         }
 
+        static void CoinbaseClient()
+        {
+            var cfg = new ExchangeApi.Coinbase.Config()
+            {
+                Endpoint = ExchangeApi.Coinbase.Instance.Prod,
+                Products = new List<string>() { "BTC-USD", "BTC-EUR" },
+                EnableMarketData = true,
+            };
+            using (var client = new ExchangeApi.Coinbase.Client(cfg))
+            {
+                client.OnOrderBook += (TimestampedMsg<ExchangeApi.Coinbase.OrderBook> msg) =>
+                {
+                    _log.Info("OnOrderBook(IsLast={0}): {1} order(s)", !client.Scheduler.HasReady(), msg.Value.Orders.Count);
+                };
+                client.OnOrderReceived += (TimestampedMsg<ExchangeApi.Coinbase.OrderReceived> msg) =>
+                {
+                    _log.Info("OnOrderReceived(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
+                client.OnOrderOpen += (TimestampedMsg<ExchangeApi.Coinbase.OrderOpen> msg) =>
+                {
+                    _log.Info("OnOrderOpen(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
+                client.OnOrderMatch += (TimestampedMsg<ExchangeApi.Coinbase.OrderMatch> msg) =>
+                {
+                    _log.Info("OnOrderMatch(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
+                client.OnOrderDone += (TimestampedMsg<ExchangeApi.Coinbase.OrderDone> msg) =>
+                {
+                    _log.Info("OnOrderDone(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
+                client.OnOrderChange += (TimestampedMsg<ExchangeApi.Coinbase.OrderChange> msg) =>
+                {
+                    _log.Info("OnOrderChange(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                };
+                client.Connect();
+                Thread.Sleep(5000);
+                while (true) Thread.Sleep(5000);
+            }
+            Thread.Sleep(2000);
+        }
+
         static void CoinbaseRest()
         {
             using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
@@ -143,7 +184,8 @@ namespace Example
                 // RawConnection();
                 // OkCoinClient();
                 // OkCoinRest();
-                CoinbaseRest();
+                CoinbaseClient();
+                // CoinbaseRest();
             }
             catch (Exception e)
             {
