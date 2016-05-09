@@ -109,6 +109,9 @@ namespace ExchangeApi.Coinbase
         public decimal? Funds;
         public Side Side;
         public OrderType OrderType;
+        // Equal to client_oid in the new order request. Null if client_oid wasn't specified.
+        // This field isn't properly documented: search for client_oid on https://docs.exchange.coinbase.com/.
+        public string ClientOrderId;
 
         public T Visit<T>(IVisitorIn<T> v)
         {

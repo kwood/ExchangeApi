@@ -36,6 +36,7 @@ namespace ExchangeApi.Coinbase.WebSocket
             msg.Funds = (decimal?)_data["funds"];
             msg.Side = ParseSide((string)_data["side"]);
             msg.OrderType = ParseOrderType((string)_data["order_type"]);
+            msg.ClientOrderId = (string)_data["client_oid"];
             return msg;
         }
 
