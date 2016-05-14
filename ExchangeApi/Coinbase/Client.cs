@@ -42,7 +42,7 @@ namespace ExchangeApi.Coinbase
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
         readonly Config _cfg;
-        readonly DurableConnection<IMessageIn, IMessageOut> _connection;
+        readonly DurableConnection<WebSocket.IMessageIn, WebSocket.IMessageOut> _connection;
         readonly REST.RestClient _restClient;
 
         readonly Dictionary<string, long> _productSeqNums = new Dictionary<string, long>();
@@ -53,9 +53,9 @@ namespace ExchangeApi.Coinbase
             Condition.Requires(cfg.Products, "cfg.Products").IsNotNull();
             Condition.Requires(cfg.Scheduler, "cfg.Scheduler").IsNotNull();
             _cfg = cfg.Clone();
-            var connector = new CodingConnector<IMessageIn, IMessageOut>(
+            var connector = new CodingConnector<WebSocket.IMessageIn, WebSocket.IMessageOut>(
                 new ExchangeApi.WebSocket.Connector(_cfg.Endpoint.WebSocket), new WebSocket.Codec());
-            _connection = new DurableConnection<IMessageIn, IMessageOut>(connector, _cfg.Scheduler);
+            _connection = new DurableConnection<WebSocket.IMessageIn, WebSocket.IMessageOut>(connector, _cfg.Scheduler);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
             _restClient = new REST.RestClient(_cfg.Endpoint.REST);
@@ -91,26 +91,26 @@ namespace ExchangeApi.Coinbase
         // Messages are never null.
         public event Action<TimestampedMsg<REST.OrderBook>> OnOrderBook;
 
-        public event Action<TimestampedMsg<OrderReceived>> OnOrderReceived;
-        public event Action<TimestampedMsg<OrderOpen>> OnOrderOpen;
-        public event Action<TimestampedMsg<OrderMatch>> OnOrderMatch;
-        public event Action<TimestampedMsg<OrderDone>> OnOrderDone;
-        public event Action<TimestampedMsg<OrderChange>> OnOrderChange;
+        public event Action<TimestampedMsg<WebSocket.OrderReceived>> OnOrderReceived;
+        public event Action<TimestampedMsg<WebSocket.OrderOpen>> OnOrderOpen;
+        public event Action<TimestampedMsg<WebSocket.OrderMatch>> OnOrderMatch;
+        public event Action<TimestampedMsg<WebSocket.OrderDone>> OnOrderDone;
+        public event Action<TimestampedMsg<WebSocket.OrderChange>> OnOrderChange;
 
-        void OnMessage(TimestampedMsg<IMessageIn> msg)
+        void OnMessage(TimestampedMsg<WebSocket.IMessageIn> msg)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             Condition.Requires(msg.Value, "msg.Value").IsNotNull();
             msg.Value.Visit(new MessageHandler(this, msg.Received));
         }
 
-        void OnConnection(IReader<IMessageIn> reader, IWriter<IMessageOut> writer)
+        void OnConnection(IReader<WebSocket.IMessageIn> reader, IWriter<WebSocket.IMessageOut> writer)
         {
             if (_cfg.EnableMarketData)
             {
                 foreach (string product in _cfg.Products)
                 {
-                    writer.Send(new SubscribeRequest() { ProductId = product });
+                    writer.Send(new WebSocket.SubscribeRequest() { ProductId = product });
                     RefreshOrderBook(product);
                 }
             }
@@ -130,7 +130,7 @@ namespace ExchangeApi.Coinbase
             }
         }
 
-        class MessageHandler : IVisitorIn<object>
+        class MessageHandler : WebSocket.IVisitorIn<object>
         {
             static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
@@ -144,13 +144,13 @@ namespace ExchangeApi.Coinbase
                 _received = received;
             }
 
-            public object Visit(OrderReceived msg)
+            public object Visit(WebSocket.OrderReceived msg)
             {
                 if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
                 try
                 {
                     _client.OnOrderReceived?.Invoke(
-                        new TimestampedMsg<OrderReceived>() { Received = _received, Value = msg });
+                        new TimestampedMsg<WebSocket.OrderReceived>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -159,13 +159,13 @@ namespace ExchangeApi.Coinbase
                 return null;
             }
 
-            public object Visit(OrderOpen msg)
+            public object Visit(WebSocket.OrderOpen msg)
             {
                 if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
                 try
                 {
                     _client.OnOrderOpen?.Invoke(
-                        new TimestampedMsg<OrderOpen>() { Received = _received, Value = msg });
+                        new TimestampedMsg<WebSocket.OrderOpen>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -174,13 +174,13 @@ namespace ExchangeApi.Coinbase
                 return null;
             }
 
-            public object Visit(OrderMatch msg)
+            public object Visit(WebSocket.OrderMatch msg)
             {
                 if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
                 try
                 {
                     _client.OnOrderMatch?.Invoke(
-                        new TimestampedMsg<OrderMatch>() { Received = _received, Value = msg });
+                        new TimestampedMsg<WebSocket.OrderMatch>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -189,13 +189,13 @@ namespace ExchangeApi.Coinbase
                 return null;
             }
 
-            public object Visit(OrderDone msg)
+            public object Visit(WebSocket.OrderDone msg)
             {
                 if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
                 try
                 {
                     _client.OnOrderDone?.Invoke(
-                        new TimestampedMsg<OrderDone>() { Received = _received, Value = msg });
+                        new TimestampedMsg<WebSocket.OrderDone>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
@@ -204,13 +204,13 @@ namespace ExchangeApi.Coinbase
                 return null;
             }
 
-            public object Visit(OrderChange msg)
+            public object Visit(WebSocket.OrderChange msg)
             {
                 if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
                 try
                 {
                     _client.OnOrderChange?.Invoke(
-                        new TimestampedMsg<OrderChange>() { Received = _received, Value = msg });
+                        new TimestampedMsg<WebSocket.OrderChange>() { Received = _received, Value = msg });
                 }
                 catch (Exception e)
                 {
