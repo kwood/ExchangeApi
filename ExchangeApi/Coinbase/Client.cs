@@ -89,7 +89,7 @@ namespace ExchangeApi.Coinbase
         public Scheduler Scheduler { get { return _cfg.Scheduler; } }
 
         // Messages are never null.
-        public event Action<TimestampedMsg<OrderBook>> OnOrderBook;
+        public event Action<TimestampedMsg<REST.OrderBook>> OnOrderBook;
 
         public event Action<TimestampedMsg<OrderReceived>> OnOrderReceived;
         public event Action<TimestampedMsg<OrderOpen>> OnOrderOpen;
@@ -118,11 +118,11 @@ namespace ExchangeApi.Coinbase
 
         void RefreshOrderBook(string product)
         {
-            OrderBook orders = _restClient.GetProductOrderBook(product);
+            REST.OrderBook orders = _restClient.GetProductOrderBook(product);
             _productSeqNums[product] = orders.Sequence;
             try
             {
-                OnOrderBook?.Invoke(new TimestampedMsg<OrderBook>() { Received = DateTime.Now, Value = orders });
+                OnOrderBook?.Invoke(new TimestampedMsg<REST.OrderBook>() { Received = DateTime.Now, Value = orders });
             }
             catch (Exception e)
             {

@@ -136,7 +136,7 @@ namespace Example
             };
             using (var client = new ExchangeApi.Coinbase.Client(cfg))
             {
-                client.OnOrderBook += (TimestampedMsg<ExchangeApi.Coinbase.OrderBook> msg) =>
+                client.OnOrderBook += (TimestampedMsg<ExchangeApi.Coinbase.REST.OrderBook> msg) =>
                 {
                     _log.Info("OnOrderBook(IsLast={0}): {1} bid(s), {2} ask(s)",
                               !client.Scheduler.HasReady(), msg.Value.Bids.Count, msg.Value.Asks.Count);
@@ -162,8 +162,8 @@ namespace Example
                     _log.Info("OnOrderChange(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
                 };
                 client.Connect();
-                Thread.Sleep(60000);
-                // while (true) Thread.Sleep(5000);
+                Thread.Sleep(5000);
+                while (true) Thread.Sleep(5000);
             }
             Thread.Sleep(2000);
         }
@@ -172,7 +172,7 @@ namespace Example
         {
             using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
             {
-                ExchangeApi.Coinbase.OrderBook book = client.GetProductOrderBook("BTC-USD");
+                ExchangeApi.Coinbase.REST.OrderBook book = client.GetProductOrderBook("BTC-USD");
                 _log.Info("Order book sequence: {0}", book.Sequence);
                 _log.Info("Order book has {0} bids(s) and {1} ask(s)", book.Bids.Count, book.Asks.Count);
             }
