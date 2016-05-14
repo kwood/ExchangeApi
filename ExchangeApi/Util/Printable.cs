@@ -85,7 +85,7 @@ namespace ExchangeApi.Util
                 return;
             if (field.Key != null)
                 output.AppendFormat("[{0}] = ", field.Key);
-            else if (field.Name != null)
+            else if (field.Name != null && !field.Index.HasValue)
                 output.AppendFormat("{0} = ", field.Name);
         }
 
