@@ -25,16 +25,20 @@ namespace ExchangeApi.Coinbase.WebSocket
             _data = data;
         }
 
-        public IMessageIn Visit(OrderReceived msg)
+        public void ParseCommon(IMessageIn msg)
         {
             msg.Time = (DateTime)_data["time"];
             msg.ProductId = (string)_data["product_id"];
             msg.Sequence = (long)_data["sequence"];
+            msg.Side = ParseSide((string)_data["side"]);
+        }
+
+        public IMessageIn Visit(OrderReceived msg)
+        {
             msg.OrderId = (string)_data["order_id"];
             msg.Size = (decimal?)_data["size"];
             msg.Price = (decimal?)_data["price"];
             msg.Funds = (decimal?)_data["funds"];
-            msg.Side = ParseSide((string)_data["side"]);
             msg.OrderType = ParseOrderType((string)_data["order_type"]);
             msg.ClientOrderId = (string)_data["client_oid"];
             return msg;
@@ -42,56 +46,40 @@ namespace ExchangeApi.Coinbase.WebSocket
 
         public IMessageIn Visit(OrderOpen msg)
         {
-            msg.Time = (DateTime)_data["time"];
-            msg.ProductId = (string)_data["product_id"];
-            msg.Sequence = (long)_data["sequence"];
             msg.OrderId = (string)_data["order_id"];
             msg.Price = (decimal)_data["price"];
             msg.RemainingSize = (decimal)_data["remaining_size"];
-            msg.Side = ParseSide((string)_data["side"]);
             return msg;
         }
 
         public IMessageIn Visit(OrderDone msg)
         {
-            msg.Time = (DateTime)_data["time"];
-            msg.ProductId = (string)_data["product_id"];
-            msg.Sequence = (long)_data["sequence"];
             msg.OrderId = (string)_data["order_id"];
             msg.Price = (decimal?)_data["price"];
             msg.RemainingSize = (decimal?)_data["remaining_size"];
             msg.Reason = ParseDoneReason((string)_data["reason"]);
-            msg.Side = ParseSide((string)_data["side"]);
             msg.OrderType = ParseOrderType((string)_data["order_type"]);
             return msg;
         }
 
         public IMessageIn Visit(OrderMatch msg)
         {
-            msg.Time = (DateTime)_data["time"];
-            msg.ProductId = (string)_data["product_id"];
-            msg.Sequence = (long)_data["sequence"];
             msg.TradeId = (long)_data["trade_id"];
             msg.MakerOrderId = (string)_data["maker_order_id"];
             msg.TakerOrderId = (string)_data["taker_order_id"];
             msg.Price = (decimal)_data["price"];
             msg.Size = (decimal)_data["size"];
-            msg.Side = ParseSide((string)_data["side"]);
             return msg;
         }
 
         public IMessageIn Visit(OrderChange msg)
         {
-            msg.Time = (DateTime)_data["time"];
-            msg.ProductId = (string)_data["product_id"];
-            msg.Sequence = (long)_data["sequence"];
             msg.OrderId = (string)_data["order_id"];
             msg.Price = (decimal?)_data["price"];
             msg.NewSize = (decimal?)_data["new_size"];
             msg.OldSize = (decimal?)_data["old_size"];
             msg.NewFunds = (decimal?)_data["new_funds"];
             msg.OldFunds = (decimal?)_data["old_funds"];
-            msg.Side = ParseSide((string)_data["side"]);
             return msg;
         }
 
@@ -148,7 +136,9 @@ namespace ExchangeApi.Coinbase.WebSocket
                 default:
                     throw new ArgumentException("Unexpected message type: " + type);
             }
-            return res.Visit(new MessageParser(data));
+            var parser = new MessageParser(data);
+            parser.ParseCommon(res);
+            return res.Visit(parser);
         }
     }
 }

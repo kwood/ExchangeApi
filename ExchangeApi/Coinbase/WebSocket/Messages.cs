@@ -19,6 +19,14 @@ namespace ExchangeApi.Coinbase.WebSocket
     public interface IMessageIn
     {
         T Visit<T>(IVisitorIn<T> v);
+
+        // Server time.
+        DateTime Time { get; set; }
+        // See https://api.exchange.coinbase.com/products for the full list of products.
+        // One example is "BTC-USD".
+        string ProductId { get; set; }
+        long Sequence { get; set; }
+        Side Side { get; set; }
     }
 
     public interface IVisitorIn<T>
@@ -28,12 +36,6 @@ namespace ExchangeApi.Coinbase.WebSocket
         T Visit(OrderDone msg);
         T Visit(OrderMatch msg);
         T Visit(OrderChange msg);
-    }
-
-    public enum Side
-    {
-        Buy = 1,
-        Sell = -1,
     }
 
     public enum OrderType
@@ -52,12 +54,25 @@ namespace ExchangeApi.Coinbase.WebSocket
     {
         // See https://api.exchange.coinbase.com/products for the full list of products.
         // One example is "BTC-USD".
-        public string ProductId;
+        public string ProductId { get; set; }
 
         public T Visit<T>(IVisitorOut<T> v)
         {
             return v.Visit(this);
         }
+    }
+
+    public abstract class OrderBase<TDerived> : Util.Printable<TDerived>, IMessageIn
+    {
+        // Server time.
+        public DateTime Time { get; set; }
+        // See https://api.exchange.coinbase.com/products for the full list of products.
+        // One example is "BTC-USD".
+        public string ProductId { get; set; }
+        public long Sequence { get; set; }
+        public Side Side { get; set; }
+
+        public abstract T Visit<T>(IVisitorIn<T> v);
     }
 
     // See https://docs.exchange.coinbase.com/#received.
@@ -74,29 +89,22 @@ namespace ExchangeApi.Coinbase.WebSocket
     // Market orders (indicated by the order_type field) may have an optional funds field which indicates how much
     // quote currency will be used to buy or sell.For example, a funds field of 100.00 for the BTC-USD product would
     // indicate a purchase of up to 100.00 USD worth of bitcoin.
-    public class OrderReceived : Util.Printable<OrderReceived>, IMessageIn
+    public class OrderReceived : OrderBase<OrderReceived>
     {
-        // Server time.
-        public DateTime Time;
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public string ProductId;
-        public long Sequence;
-        public string OrderId;
+        public string OrderId { get; set; }
         // Set only for limit orders.
-        public decimal? Size;
+        public decimal? Size { get; set; }
         // Always set for limit order. May be missing for market orders, in which case Funds
         // is set.
-        public decimal? Price;
+        public decimal? Price { get; set; }
         // Never set for limit orders. If set, Price is missing.
-        public decimal? Funds;
-        public Side Side;
-        public OrderType OrderType;
+        public decimal? Funds { get; set; }
+        public OrderType OrderType { get; set; }
         // Equal to client_oid in the new order request. Null if client_oid wasn't specified.
         // This field isn't properly documented: search for client_oid on https://docs.exchange.coinbase.com/.
-        public string ClientOrderId;
+        public string ClientOrderId { get; set; }
 
-        public T Visit<T>(IVisitorIn<T> v)
+        public override T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }
@@ -109,20 +117,13 @@ namespace ExchangeApi.Coinbase.WebSocket
     //
     // There will be no open message for orders which will be filled immediately. There will be no open message for
     // market orders since they are filled immediately.
-    public class OrderOpen : Util.Printable<OrderOpen>, IMessageIn
+    public class OrderOpen : OrderBase<OrderOpen>
     {
-        // Server time.
-        public DateTime Time;
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public string ProductId;
-        public long Sequence;
-        public string OrderId;
-        public decimal Price;
-        public decimal RemainingSize;
-        public Side Side;
+        public string OrderId { get; set; }
+        public decimal Price { get; set; }
+        public decimal RemainingSize { get; set; }
 
-        public T Visit<T>(IVisitorIn<T> v)
+        public override T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }
@@ -141,24 +142,17 @@ namespace ExchangeApi.Coinbase.WebSocket
     // A done message will be sent for received orders which are fully filled or canceled due to self-trade
     // prevention. There will be no open message for such orders. done messages for orders which are not on the
     // book should be ignored when maintaining a real-time order book.
-    public class OrderDone : Util.Printable<OrderDone>, IMessageIn
+    public class OrderDone : OrderBase<OrderDone>
     {
-        // Server time.
-        public DateTime Time;
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public string ProductId;
-        public long Sequence;
-        public string OrderId;
+        public string OrderId { get; set; }
         // Set only for limit orders.
-        public decimal? Price;
+        public decimal? Price { get; set; }
         // Set only for limit orders. Zero if Reason is Filled.
-        public decimal? RemainingSize;
-        public DoneReason Reason;
-        public Side Side;
-        public OrderType OrderType;
+        public decimal? RemainingSize { get; set; }
+        public DoneReason Reason { get; set; }
+        public OrderType OrderType { get; set; }
 
-        public T Visit<T>(IVisitorIn<T> v)
+        public override T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }
@@ -170,23 +164,15 @@ namespace ExchangeApi.Coinbase.WebSocket
     // being received and the maker order is a resting order on the book. The side field indicates the maker
     // order side. If the side is sell this indicates the maker was a sell order and the match is considered an
     // up-tick. A buy side match is a down-tick.
-    public class OrderMatch : Util.Printable<OrderMatch>, IMessageIn
+    public class OrderMatch : OrderBase<OrderMatch>
     {
-        // Server time.
-        public DateTime Time;
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public string ProductId;
-        public long Sequence;
-        public long TradeId;
-        public string MakerOrderId;
-        public string TakerOrderId;
-        public decimal Price;
-        public decimal Size;
-        // Side of the maker order.
-        public Side Side;
+        public long TradeId { get; set; }
+        public string MakerOrderId { get; set; }
+        public string TakerOrderId { get; set; }
+        public decimal Price { get; set; }
+        public decimal Size { get; set; }
 
-        public T Visit<T>(IVisitorIn<T> v)
+        public override T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }
@@ -202,25 +188,18 @@ namespace ExchangeApi.Coinbase.WebSocket
     // change messages for received but not yet open orders can be ignored when building a real-time order book.
     // Any change message where the price is null indicates that the change message is for a market order. Change
     // messages for limit orders will always have a price specified.
-    public class OrderChange : Util.Printable<OrderChange>, IMessageIn
+    public class OrderChange : OrderBase<OrderChange>
     {
-        // Server time.
-        public DateTime Time;
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public string ProductId;
-        public long Sequence;
-        public string OrderId;
+        public string OrderId { get; set; }
         // Set only for limit orders.
-        public decimal? Price;
+        public decimal? Price { get; set; }
         // Either NewSize and OldSize are set, or NewFunds and OldFunds are set.
-        public decimal? NewSize;
-        public decimal? OldSize;
-        public decimal? NewFunds;
-        public decimal? OldFunds;
-        public Side Side;
+        public decimal? NewSize { get; set; }
+        public decimal? OldSize { get; set; }
+        public decimal? NewFunds { get; set; }
+        public decimal? OldFunds { get; set; }
 
-        public T Visit<T>(IVisitorIn<T> v)
+        public override T Visit<T>(IVisitorIn<T> v)
         {
             return v.Visit(this);
         }

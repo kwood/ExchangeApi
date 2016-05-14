@@ -43,10 +43,10 @@ namespace ExchangeApi.Coinbase.REST
         //
         // See https://api.exchange.coinbase.com/products for the full list of products.
         // One example is "BTC-USD".
-        public OrderBook GetProductOrderBook(string product)
+        public FullOrderBook GetProductOrderBook(string product)
         {
             Condition.Requires(product, "product").IsNotNullOrEmpty();
-            var book = new OrderBook() { Time = GetServerTime() };
+            var book = new FullOrderBook() { Time = GetServerTime() };
             string content = SendRequest(HttpMethod.Get, String.Format("/products/{0}/book?level=3", product));
             // {
             //   "sequence": 12345,

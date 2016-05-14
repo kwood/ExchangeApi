@@ -13,12 +13,10 @@ namespace ExchangeApi.Coinbase
     {
         // URI of the exchange.
         public Instance Endpoint = Instance.Prod;
-        // The list of products the client is interested in.
+        // The list of products for which we want market data.
         // See https://api.exchange.coinbase.com/products for the full list of products.
         // One example is "BTC-USD".
         public List<string> Products = new List<string>();
-        // If true, receive market data for Products.
-        public bool EnableMarketData = false;
         // Client will fire all events on this Scheduler.
         public Scheduler Scheduler = new Scheduler();
 
@@ -27,7 +25,6 @@ namespace ExchangeApi.Coinbase
             var res = new Config()
             {
                 Endpoint = Endpoint,  // It's immutable.
-                EnableMarketData = EnableMarketData,
                 Scheduler = Scheduler,
             };
             if (Products != null) res.Products = Products.ToList();
@@ -45,7 +42,7 @@ namespace ExchangeApi.Coinbase
         readonly DurableConnection<WebSocket.IMessageIn, WebSocket.IMessageOut> _connection;
         readonly REST.RestClient _restClient;
 
-        readonly Dictionary<string, long> _productSeqNums = new Dictionary<string, long>();
+        readonly Dictionary<string, OrderBookBuilder> _products = new Dictionary<string, OrderBookBuilder>();
 
         public Client(Config cfg)
         {
@@ -59,27 +56,19 @@ namespace ExchangeApi.Coinbase
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
             _restClient = new REST.RestClient(_cfg.Endpoint.REST);
+            foreach (string product in _cfg.Products)
+            {
+                _products.Add(product, new OrderBookBuilder());
+            }
         }
 
         // Asynchronous. Events may fire even after Dispose() returns.
-        public void Dispose()
-        {
-            _connection.Dispose();
-        }
+        public void Dispose() { _connection.Dispose(); }
 
         // See comments in DurableSubscriber.
-        public void Connect()
-        {
-            _connection.Connect();
-        }
-        public void Disconnect()
-        {
-            _connection.Disconnect();
-        }
-        public void Reconnect()
-        {
-            _connection.Reconnect();
-        }
+        public void Connect() { _connection.Connect(); }
+        public void Disconnect() { _connection.Disconnect(); }
+        public void Reconnect() { _connection.Reconnect(); }
 
         // Note that Connected == true doesn't mean we have an active connection to
         // the exchange. It merely means that the Client is in the "connected" state and
@@ -88,154 +77,89 @@ namespace ExchangeApi.Coinbase
 
         public Scheduler Scheduler { get { return _cfg.Scheduler; } }
 
-        // Messages are never null.
-        public event Action<TimestampedMsg<REST.OrderBook>> OnOrderBook;
-
-        public event Action<TimestampedMsg<WebSocket.OrderReceived>> OnOrderReceived;
-        public event Action<TimestampedMsg<WebSocket.OrderOpen>> OnOrderOpen;
-        public event Action<TimestampedMsg<WebSocket.OrderMatch>> OnOrderMatch;
-        public event Action<TimestampedMsg<WebSocket.OrderDone>> OnOrderDone;
-        public event Action<TimestampedMsg<WebSocket.OrderChange>> OnOrderChange;
+        // Arguments are never null. The first is product ID.
+        // If there is a trade, OnTrade triggers first, followed immediately by OnOrderBook.
+        public event Action<string, TimestampedMsg<OrderBookDelta>> OnOrderBook;
+        public event Action<string, TimestampedMsg<Trade>> OnTrade;
 
         void OnMessage(TimestampedMsg<WebSocket.IMessageIn> msg)
         {
             Condition.Requires(msg, "msg").IsNotNull();
             Condition.Requires(msg.Value, "msg.Value").IsNotNull();
-            msg.Value.Visit(new MessageHandler(this, msg.Received));
+            Condition.Requires(msg.Value.ProductId, "msg.Value.ProductId").IsNotNullOrEmpty();
+            Condition.Requires(_products.ContainsKey(msg.Value.ProductId));
+
+            OrderBookBuilder book = _products[msg.Value.ProductId];
+            OrderBookDelta delta = null;
+            Trade trade = null;
+            bool ok = false;
+            try
+            {
+                ok = book.OnOrderUpdate(msg.Value, out delta, out trade);
+            }
+            catch (Exception e)
+            {
+                _log.Error(e, "Unable to process order update");
+            }
+
+            if (ok)
+            {
+                if (trade != null && trade.Size > 0m)
+                {
+                    try
+                    {
+                        OnTrade?.Invoke(
+                            msg.Value.ProductId,
+                            new TimestampedMsg<Trade>() { Received = msg.Received, Value = trade });
+                    }
+                    catch (Exception e)
+                    {
+                        _log.Warn(e, "Ignoring exception from OnTrade");
+                    }
+                }
+                if (delta != null && (delta.Bids.Any() || delta.Asks.Any()))
+                {
+                    try
+                    {
+                        OnOrderBook?.Invoke(
+                            msg.Value.ProductId,
+                            new TimestampedMsg<OrderBookDelta>() { Received = msg.Received, Value = delta });
+                    }
+                    catch (Exception e)
+                    {
+                        _log.Warn(e, "Ignoring exception from OnOrderBook");
+                    }
+                }
+            }
+            else
+            {
+                RefreshOrderBook(msg.Value.ProductId, book);
+            }
         }
 
         void OnConnection(IReader<WebSocket.IMessageIn> reader, IWriter<WebSocket.IMessageOut> writer)
         {
-            if (_cfg.EnableMarketData)
+            foreach (var p in _products)
             {
-                foreach (string product in _cfg.Products)
-                {
-                    writer.Send(new WebSocket.SubscribeRequest() { ProductId = product });
-                    RefreshOrderBook(product);
-                }
+                writer.Send(new WebSocket.SubscribeRequest() { ProductId = p.Key });
+                RefreshOrderBook(p.Key, p.Value);
             }
         }
 
-        void RefreshOrderBook(string product)
+        void RefreshOrderBook(string product, OrderBookBuilder book)
         {
-            REST.OrderBook orders = _restClient.GetProductOrderBook(product);
-            _productSeqNums[product] = orders.Sequence;
+            REST.FullOrderBook snapshot = _restClient.GetProductOrderBook(product);
+            DateTime received = DateTime.UtcNow;
+            OrderBookDelta delta = book.OnSnapshot(snapshot);  // Throws if the snapshot is malformed.
             try
             {
-                OnOrderBook?.Invoke(new TimestampedMsg<REST.OrderBook>() { Received = DateTime.Now, Value = orders });
+                OnOrderBook?.Invoke(
+                    product,
+                    new TimestampedMsg<OrderBookDelta>() { Received = received, Value = delta });
             }
             catch (Exception e)
             {
                 _log.Warn(e, "Ignoring exception from OnOrderBook");
-            }
-        }
-
-        class MessageHandler : WebSocket.IVisitorIn<object>
-        {
-            static readonly Logger _log = LogManager.GetCurrentClassLogger();
-
-            readonly Client _client;
-            readonly DateTime _received;
-
-            public MessageHandler(Client client, DateTime received)
-            {
-                Condition.Requires(client, "client").IsNotNull();
-                _client = client;
-                _received = received;
-            }
-
-            public object Visit(WebSocket.OrderReceived msg)
-            {
-                if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
-                try
-                {
-                    _client.OnOrderReceived?.Invoke(
-                        new TimestampedMsg<WebSocket.OrderReceived>() { Received = _received, Value = msg });
-                }
-                catch (Exception e)
-                {
-                    _log.Warn(e, "Ignoring exception from OnOrderReceived");
-                }
-                return null;
-            }
-
-            public object Visit(WebSocket.OrderOpen msg)
-            {
-                if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
-                try
-                {
-                    _client.OnOrderOpen?.Invoke(
-                        new TimestampedMsg<WebSocket.OrderOpen>() { Received = _received, Value = msg });
-                }
-                catch (Exception e)
-                {
-                    _log.Warn(e, "Ignoring exception from OnOrderOpen");
-                }
-                return null;
-            }
-
-            public object Visit(WebSocket.OrderMatch msg)
-            {
-                if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
-                try
-                {
-                    _client.OnOrderMatch?.Invoke(
-                        new TimestampedMsg<WebSocket.OrderMatch>() { Received = _received, Value = msg });
-                }
-                catch (Exception e)
-                {
-                    _log.Warn(e, "Ignoring exception from OnOrderMatch");
-                }
-                return null;
-            }
-
-            public object Visit(WebSocket.OrderDone msg)
-            {
-                if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
-                try
-                {
-                    _client.OnOrderDone?.Invoke(
-                        new TimestampedMsg<WebSocket.OrderDone>() { Received = _received, Value = msg });
-                }
-                catch (Exception e)
-                {
-                    _log.Warn(e, "Ignoring exception from OnOrderDone");
-                }
-                return null;
-            }
-
-            public object Visit(WebSocket.OrderChange msg)
-            {
-                if (!CheckSeqNum(msg.ProductId, msg.Sequence)) return null;
-                try
-                {
-                    _client.OnOrderChange?.Invoke(
-                        new TimestampedMsg<WebSocket.OrderChange>() { Received = _received, Value = msg });
-                }
-                catch (Exception e)
-                {
-                    _log.Warn(e, "Ignoring exception from OnOrderChange");
-                }
-                return null;
-            }
-
-            bool CheckSeqNum(string product, long seq)
-            {
-                long prev = _client._productSeqNums[product];
-                if (seq == prev + 1)
-                {
-                    _client._productSeqNums[product] = seq;
-                    return true;
-                }
-                if (seq <= prev)
-                {
-                    _log.Info("Ignoring message with sequence {0} for {1}: already at {2}", seq, product, prev);
-                    return false;
-                }
-                _log.Warn("Detected a gap in sequence numbers for {0}: {1} => {2}. Fetching the full order book.",
-                          product, prev, seq);
-                _client.RefreshOrderBook(product);
-                return false;
             }
         }
     }

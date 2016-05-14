@@ -60,6 +60,7 @@
     <Compile Include="Coinbase\Instance.cs" />
     <Compile Include="Coinbase\Json.cs" />
     <Compile Include="Coinbase\Messages.cs" />
+    <Compile Include="Coinbase\OrderBookBuilder.cs" />
     <Compile Include="Coinbase\REST\Messages.cs" />
     <Compile Include="Coinbase\REST\RestClient.cs" />
     <Compile Include="Coinbase\WebSocket\Codec.cs" />
@@ -103,6 +104,7 @@
     <Compile Include="Util\Strings.cs" />
     <Compile Include="Util\Time.cs" />
     <Compile Include="Util\TimeSpan.cs" />
+    <Compile Include="Util\Tribool.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

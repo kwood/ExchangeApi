@@ -132,34 +132,24 @@ namespace Example
             {
                 Endpoint = ExchangeApi.Coinbase.Instance.Prod,
                 Products = new List<string>() { "BTC-USD", "BTC-EUR" },
-                EnableMarketData = true,
             };
             using (var client = new ExchangeApi.Coinbase.Client(cfg))
             {
-                client.OnOrderBook += (TimestampedMsg<ExchangeApi.Coinbase.REST.OrderBook> msg) =>
+                client.OnOrderBook += (string product, TimestampedMsg<ExchangeApi.Coinbase.OrderBookDelta> msg) =>
                 {
-                    _log.Info("OnOrderBook(IsLast={0}): {1} bid(s), {2} ask(s)",
-                              !client.Scheduler.HasReady(), msg.Value.Bids.Count, msg.Value.Asks.Count);
+                    if (msg.Value.Bids.Count + msg.Value.Asks.Count > 10)
+                    {
+                        _log.Info("OnOrderBook({0}, IsLast={1}): {2} bid(s), {3} ask(s)",
+                                  product, !client.Scheduler.HasReady(), msg.Value.Bids.Count, msg.Value.Asks.Count);
+                    }
+                    else
+                    {
+                        _log.Info("OnOrderBook({0}, IsLast={1}): {2}", product, !client.Scheduler.HasReady(), msg.Value);
+                    }
                 };
-                client.OnOrderReceived += (TimestampedMsg<ExchangeApi.Coinbase.WebSocket.OrderReceived> msg) =>
+                client.OnTrade += (string product, TimestampedMsg<ExchangeApi.Coinbase.Trade> msg) =>
                 {
-                    _log.Info("OnOrderReceived(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
-                };
-                client.OnOrderOpen += (TimestampedMsg<ExchangeApi.Coinbase.WebSocket.OrderOpen> msg) =>
-                {
-                    _log.Info("OnOrderOpen(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
-                };
-                client.OnOrderMatch += (TimestampedMsg<ExchangeApi.Coinbase.WebSocket.OrderMatch> msg) =>
-                {
-                    _log.Info("OnOrderMatch(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
-                };
-                client.OnOrderDone += (TimestampedMsg<ExchangeApi.Coinbase.WebSocket.OrderDone> msg) =>
-                {
-                    _log.Info("OnOrderDone(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
-                };
-                client.OnOrderChange += (TimestampedMsg<ExchangeApi.Coinbase.WebSocket.OrderChange> msg) =>
-                {
-                    _log.Info("OnOrderChange(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg.Value);
+                    _log.Info("OnTrade({0}, IsLast={1}): {2}", product, !client.Scheduler.HasReady(), msg.Value);
                 };
                 client.Connect();
                 Thread.Sleep(5000);
@@ -172,7 +162,7 @@ namespace Example
         {
             using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
             {
-                ExchangeApi.Coinbase.REST.OrderBook book = client.GetProductOrderBook("BTC-USD");
+                ExchangeApi.Coinbase.REST.FullOrderBook book = client.GetProductOrderBook("BTC-USD");
                 _log.Info("Order book sequence: {0}", book.Sequence);
                 _log.Info("Order book has {0} bids(s) and {1} ask(s)", book.Bids.Count, book.Asks.Count);
             }

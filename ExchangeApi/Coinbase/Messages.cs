@@ -6,23 +6,40 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.Coinbase
 {
-    // One price level of an order book.
-    class PriceLevel
+    public enum Side
     {
-        public decimal Price;
-        // Includes our own orders if any.
-        public decimal Size;
+        Buy = 1,
+        Sell = -1,
     }
 
-    // Either a full snapshot or a delta, depending on the context where it's used.
-    //
-    // All prices are distinct. All sizes are non-zero. When representing a full snapshot,
-    // all sizes are positive. When represending a delta, sizes may be negative or positive.
-    class OrderBook : Util.Printable<OrderBook>
+    // One price level of an order book.
+    public class PriceLevel
     {
-        // Not null. Sorted by price in descending order (the biggest price first).
-        public List<PriceLevel> Bids;
+        public decimal Price { get; set; }
+        public decimal SizeDelta { get; set; }
+    }
+
+    // All prices are distinct. All sizes are non-zero (can be negative).
+    // Includes our own orders if any.
+    public class OrderBookDelta : Util.Printable<OrderBookDelta>
+    {
+        // Server time. Coinbase doesn't give us server time together with the full order book,
+        // so we retrieve it with a separate request BEFORE requesting the order book.
+        public DateTime Time { get; set; }
+        // Not null. Sorted by price in descending order (the highest price first).
+        public List<PriceLevel> Bids { get; set; }
         // Not null. Sorted by price in ascending order (the lowest price first).
-        public List<PriceLevel> Asks;
+        public List<PriceLevel> Asks { get; set; }
+    }
+
+    // A.K.A. fill, or match.
+    public class Trade : Util.Printable<Trade>
+    {
+        // Server time.
+        public DateTime Time { get; set; }
+        public decimal Price { get; set; }
+        public decimal Size { get; set; }
+        // Maker order side.
+        public Side Side { get; set; }
     }
 }
