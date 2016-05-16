@@ -74,6 +74,7 @@
     <Compile Include="Infra\MessageQueue.cs" />
     <Compile Include="Infra\PeriodicAction.cs" />
     <Compile Include="Infra\PriorityQueue.cs" />
+    <Compile Include="Infra\RateLimiter.cs" />
     <Compile Include="Infra\RequestQueue.cs" />
     <Compile Include="Infra\ScheduledQueue.cs" />
     <Compile Include="Infra\Turnstile.cs" />
