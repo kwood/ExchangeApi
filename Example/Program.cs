@@ -131,7 +131,7 @@ namespace Example
             var cfg = new ExchangeApi.Coinbase.Config()
             {
                 Endpoint = ExchangeApi.Coinbase.Instance.Prod,
-                Products = new List<string>() { "BTC-USD", "BTC-EUR" },
+                Products = new List<string>() { "BTC-USD", "BTC-EUR", "BTC-GBP", "BTC-CAD" },
             };
             using (var client = new ExchangeApi.Coinbase.Client(cfg))
             {
