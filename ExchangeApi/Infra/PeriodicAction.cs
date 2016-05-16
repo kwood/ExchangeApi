@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace ExchangeApi
 {
     // Supports running an action periodically.
-    class PeriodicAction : IDisposable
+    public class PeriodicAction : IDisposable
     {
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
