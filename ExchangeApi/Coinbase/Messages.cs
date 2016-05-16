@@ -30,6 +30,8 @@ namespace ExchangeApi.Coinbase
         public List<PriceLevel> Bids { get; set; }
         // Not null. Sorted by price in ascending order (the lowest price first).
         public List<PriceLevel> Asks { get; set; }
+        // This is for debugging only. Don't use it in production code.
+        public long Sequence;
     }
 
     // A.K.A. fill, or match.
