@@ -35,6 +35,7 @@ namespace ExchangeApi.Coinbase
                 Time = snapshot.Time,
                 Bids = Diff(_bids, bids).ToList(),
                 Asks = Diff(_asks, asks).ToList(),
+                Sequence = snapshot.Sequence,
             };
             delta.Bids.Reverse();
             _seqNum = snapshot.Sequence;
@@ -50,6 +51,7 @@ namespace ExchangeApi.Coinbase
                 Time = msg.Time,
                 Bids = new List<PriceLevel>(),
                 Asks = new List<PriceLevel>(),
+                Sequence = msg.Sequence,
             };
             trade = new Trade()
             {
@@ -102,21 +104,23 @@ namespace ExchangeApi.Coinbase
             {
                 bool validPrev = enumPrev.MoveNext();
                 bool validCur = enumCur.MoveNext();
-                while (validPrev && validPrev)
+                while (validPrev && validCur)
                 {
                     int cmp = Decimal.Compare(enumPrev.Current.Key, enumCur.Current.Key);
                     if (cmp < 0)
                     {
                         // A price level has disappeared from the order book.
                         var kv = enumPrev.Current;
-                        yield return new PriceLevel() { Price = kv.Key, SizeDelta = -kv.Value.TotalSize };
+                        if (kv.Value.TotalSize > 0)
+                            yield return new PriceLevel() { Price = kv.Key, SizeDelta = -kv.Value.TotalSize };
                         validPrev = enumPrev.MoveNext();
                     }
                     else if (cmp > 0)
                     {
                         // A new price level has appeared in the order book.
                         var kv = enumCur.Current;
-                        yield return new PriceLevel() { Price = kv.Key, SizeDelta = kv.Value.TotalSize };
+                        if (kv.Value.TotalSize > 0)
+                            yield return new PriceLevel() { Price = kv.Key, SizeDelta = kv.Value.TotalSize };
                         validCur = enumCur.MoveNext();
                     }
                     else
@@ -126,7 +130,7 @@ namespace ExchangeApi.Coinbase
                         decimal sizeCur = enumCur.Current.Value.TotalSize;
                         if (sizeCur != sizePrev)
                         {
-                            yield return new PriceLevel() { Price = enumCur.Current.Key, SizeDelta = sizePrev - sizeCur };
+                            yield return new PriceLevel() { Price = enumCur.Current.Key, SizeDelta = sizeCur - sizePrev };
                         }
                         validPrev = enumPrev.MoveNext();
                         validCur = enumCur.MoveNext();
@@ -136,14 +140,16 @@ namespace ExchangeApi.Coinbase
                 {
                     // A price level has disappeared from the order book.
                     var kv = enumPrev.Current;
-                    yield return new PriceLevel() { Price = kv.Key, SizeDelta = -kv.Value.TotalSize };
+                    if (kv.Value.TotalSize > 0)
+                        yield return new PriceLevel() { Price = kv.Key, SizeDelta = -kv.Value.TotalSize };
                     validPrev = enumPrev.MoveNext();
                 }
                 while (validCur)
                 {
                     // A new price level has appeared in the order book.
                     var kv = enumCur.Current;
-                    yield return new PriceLevel() { Price = kv.Key, SizeDelta = kv.Value.TotalSize };
+                    if (kv.Value.TotalSize > 0)
+                        yield return new PriceLevel() { Price = kv.Key, SizeDelta = kv.Value.TotalSize };
                     validCur = enumCur.MoveNext();
                 }
             }
