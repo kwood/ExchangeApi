@@ -151,15 +151,18 @@ namespace ExchangeApi.Coinbase
             REST.FullOrderBook snapshot = _restClient.GetProductOrderBook(product);
             DateTime received = DateTime.UtcNow;
             OrderBookDelta delta = book.OnSnapshot(snapshot);  // Throws if the snapshot is malformed.
-            try
+            if (delta != null && (delta.Bids.Any() || delta.Asks.Any()))
             {
-                OnOrderBook?.Invoke(
-                    product,
-                    new TimestampedMsg<OrderBookDelta>() { Received = received, Value = delta });
-            }
-            catch (Exception e)
-            {
-                _log.Warn(e, "Ignoring exception from OnOrderBook");
+                try
+                {
+                    OnOrderBook?.Invoke(
+                        product,
+                        new TimestampedMsg<OrderBookDelta>() { Received = received, Value = delta });
+                }
+                catch (Exception e)
+                {
+                    _log.Warn(e, "Ignoring exception from OnOrderBook");
+                }
             }
         }
     }
