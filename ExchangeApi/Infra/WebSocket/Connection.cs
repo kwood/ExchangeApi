@@ -55,17 +55,20 @@ namespace ExchangeApi.WebSocket
         // From IMessageStream.
         public void Connect()
         {
-            Task t;
-            lock (_monitor)
+            using (var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
             {
-                if (_state != State.Created) throw new Exception("ActiveSocket.Connect() is disallowed");
-                _log.Info("Connecting to {0}", _endpoint);
-                _socket = new ClientWebSocket();
-                _state = State.Connected;
-                _socket.Options.SetBuffer(receiveBufferSize: 64 << 10, sendBufferSize: 1 << 10);
-                t = _socket.ConnectAsync(new Uri(_endpoint), TimeoutSec(10));
+                Task t;
+                lock (_monitor)
+                {
+                    if (_state != State.Created) throw new Exception("ActiveSocket.Connect() is disallowed");
+                    _log.Info("Connecting to {0}", _endpoint);
+                    _socket = new ClientWebSocket();
+                    _state = State.Connected;
+                    _socket.Options.SetBuffer(receiveBufferSize: 64 << 10, sendBufferSize: 1 << 10);
+                    t = _socket.ConnectAsync(new Uri(_endpoint), cancel.Token);
+                }
+                t.Wait();
             }
-            t.Wait();
             _log.Info("Connected to {0}", _endpoint);
             Task.Run(() =>
                 {
@@ -78,13 +81,16 @@ namespace ExchangeApi.WebSocket
         public void Send(ArraySegment<byte> message)
         {
             Task t;
-            lock (_monitor)
+            using (var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
             {
-                if (_state != State.Connected) throw new Exception("ActiveSocket.Send() is disallowed");
-                _log.Info("OUT: {0}", DecodeForLogging(message));
-                t = _socket.SendAsync(message, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: TimeoutSec(10));
+                lock (_monitor)
+                {
+                    if (_state != State.Connected) throw new Exception("ActiveSocket.Send() is disallowed");
+                    _log.Info("OUT: {0}", DecodeForLogging(message));
+                    t = _socket.SendAsync(message, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: cancel.Token);
+                }
+                t.Wait();
             }
-            t.Wait();
         }
 
         // From IMessageStream.
@@ -92,6 +98,7 @@ namespace ExchangeApi.WebSocket
         public void Dispose()
         {
             Task t = null;
+            CancellationTokenSource cancel = null;
             lock (_monitor)
             {
                 switch (_state)
@@ -110,10 +117,11 @@ namespace ExchangeApi.WebSocket
                     case State.Connected:
                         _state = State.Disposing;
                         _log.Info("Disconnecting...");
+                        cancel = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                         // The documentation says that CloseOutputAsync() and CloseAsync() are equivalent when
                         // used by the client. This is not true. CloseAsync() will occasionally hang despite the
                         // 10 second timeout.
-                        try { t = _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", TimeoutSec(10)); }
+                        try { t = _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", cancel.Token); }
                         catch (Exception e) { _log.Warn(e, "Unable to cleanly close ClientWebSocket"); }
                         break;
                 }
@@ -125,6 +133,8 @@ namespace ExchangeApi.WebSocket
                 catch (Exception e) { _log.Warn(e, "Unable to cleanly close ClientWebSocket"); }
                 _log.Info("Disconnected");
             }
+
+            if (cancel != null) cancel.Dispose();
 
             lock (_monitor)
             {
@@ -145,26 +155,29 @@ namespace ExchangeApi.WebSocket
             var buffer = new ArraySegment<byte>(new byte[128 << 10]);
             while (true)
             {
-                Task<WebSocketReceiveResult> t = null;
-                lock (_monitor)
-                {
-                    if (_state != State.Connected) break;
-                    // If we aren't getting anything in 30 seconds, presume the connection broken.
-                    try { t = _socket.ReceiveAsync(buffer, TimeoutSec(30)); }
-                    catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
-                }
-
                 WebSocketReceiveResult res = null;
-                if (t != null)
+                // If we aren't getting anything in 30 seconds, presume the connection broken.
+                using (var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
                 {
-                    try
+                    Task<WebSocketReceiveResult> t = null;
+                    lock (_monitor)
                     {
-                        res = await t;
+                        if (_state != State.Connected) break;
+                        try { t = _socket.ReceiveAsync(buffer, cancel.Token); }
+                        catch (Exception e) { _log.Warn(e, "Unable to read from ClientWebSocket"); }
                     }
-                    catch (Exception e)
+
+                    if (t != null)
                     {
-                        // Don't spam logs with errors if we are in the process of disconnecting.
-                        if (Connected) _log.Warn(e, "Unable to read from ClientWebSocket");
+                        try
+                        {
+                            res = await t;
+                        }
+                        catch (Exception e)
+                        {
+                            // Don't spam logs with errors if we are in the process of disconnecting.
+                            if (Connected) _log.Warn(e, "Unable to read from ClientWebSocket");
+                        }
                     }
                 }
 
@@ -219,11 +232,6 @@ namespace ExchangeApi.WebSocket
                 Array.Copy(prefix, dest, prefix.Length);
                 Array.Copy(src, offset, dest, prefix.Length, count);
             }
-        }
-
-        static CancellationToken TimeoutSec(int seconds)
-        {
-            return new CancellationTokenSource(TimeSpan.FromSeconds(seconds)).Token;
         }
 
         static string DecodeForLogging(ArraySegment<byte> bytes)
