@@ -127,7 +127,7 @@ namespace CoinbaseMarketFeedTest
                 Endpoint = Instance.Prod,
                 Products = new List<string>() { "BTC-USD" },
             };
-            using (var restClient = new ExchangeApi.Coinbase.REST.RestClient(cfg.Endpoint.REST))
+            using (var restClient = new ExchangeApi.Coinbase.REST.RestClient(cfg.Endpoint.REST, null))
             using (var client = new Client(cfg))
             {
                 var book = new OrderBook();

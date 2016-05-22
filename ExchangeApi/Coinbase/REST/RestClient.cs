@@ -18,15 +18,18 @@ namespace ExchangeApi.Coinbase.REST
     {
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
+        readonly Keys _keys;
         readonly HttpClient _http;
         // From https://docs.exchange.coinbase.com/#rate-limits:
         //
         //   We throttle public endpoints by IP: 3 requests per second, up to 6 requests per second in bursts.
         readonly RateLimiter _rateLimiter = new RateLimiter(TimeSpan.FromSeconds(1), 3);
 
-        public RestClient(string endpoint)
+        // `keys` may be null, in which case authenticated requests won't be supported.
+        public RestClient(string endpoint, Keys keys)
         {
             Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
+            _keys = keys;
             _http = new HttpClient();
             _http.BaseAddress = new Uri(endpoint);
             _http.Timeout = TimeSpan.FromSeconds(10);

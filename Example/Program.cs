@@ -160,7 +160,7 @@ namespace Example
 
         static void CoinbaseRest()
         {
-            using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST))
+            using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST, null))
             {
                 ExchangeApi.Coinbase.REST.FullOrderBook book = client.GetProductOrderBook("BTC-USD");
                 _log.Info("Order book sequence: {0}", book.Sequence);

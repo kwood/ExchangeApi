@@ -19,6 +19,7 @@ namespace ExchangeApi.Coinbase
         public List<string> Products = new List<string>();
         // Client will fire all events on this Scheduler.
         public Scheduler Scheduler = new Scheduler();
+        public Keys Keys = null;
 
         public Config Clone()
         {
@@ -26,6 +27,7 @@ namespace ExchangeApi.Coinbase
             {
                 Endpoint = Endpoint,  // It's immutable.
                 Scheduler = Scheduler,
+                Keys = Keys,
             };
             if (Products != null) res.Products = Products.ToList();
             return res;
@@ -55,7 +57,7 @@ namespace ExchangeApi.Coinbase
             _connection = new DurableConnection<WebSocket.IMessageIn, WebSocket.IMessageOut>(connector, _cfg.Scheduler);
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
-            _restClient = new REST.RestClient(_cfg.Endpoint.REST);
+            _restClient = new REST.RestClient(_cfg.Endpoint.REST, _cfg.Keys);
             foreach (string product in _cfg.Products)
             {
                 _products.Add(product, new OrderBookBuilder());
