@@ -81,9 +81,21 @@ namespace ExchangeApi
                     _next = new Task(delegate { }, cancel);
                     next = _next;
                 }
-                // Task.WhenAny() returns Task<Task>, hence the double await.
-                // Will throw if cancellation is requested through `cancel`.
-                await await Task.WhenAny(Task.Delay(delay), next);
+                using (var c = new CancellationTokenSource())
+                {
+                    try
+                    {
+                        // Task.WhenAny() returns Task<Task>, hence the double await.
+                        // Will throw if cancellation is requested through `cancel`.
+                        await await Task.WhenAny(Task.Delay(delay, c.Token), next);
+                    }
+                    finally
+                    {
+                        // The delay task won't be garbage collected until it completes
+                        // (which can be "never"), so we cancel it manually.
+                        c.Cancel();
+                    }
+                }
             }
         }
 
