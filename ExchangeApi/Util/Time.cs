@@ -10,6 +10,11 @@ namespace ExchangeApi.Util
     {
         static readonly DateTime _epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        public static long ToUnixSeconds(DateTime t)
+        {
+            return (long)(t - _epoch).TotalSeconds;
+        }
+
         public static DateTime FromUnixMillis(long millis)
         {
             return _epoch + TimeSpan.FromMilliseconds(millis);

@@ -56,6 +56,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Coinbase\Authenticator.cs" />
     <Compile Include="Coinbase\Client.cs" />
     <Compile Include="Coinbase\Instance.cs" />
     <Compile Include="Coinbase\Json.cs" />

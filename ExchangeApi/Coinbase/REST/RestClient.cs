@@ -18,7 +18,7 @@ namespace ExchangeApi.Coinbase.REST
     {
         static readonly Logger _log = LogManager.GetCurrentClassLogger();
 
-        readonly Keys _keys;
+        readonly Authenticator _authenticator;
         readonly HttpClient _http;
         // From https://docs.exchange.coinbase.com/#rate-limits:
         //
@@ -29,7 +29,7 @@ namespace ExchangeApi.Coinbase.REST
         public RestClient(string endpoint, Keys keys)
         {
             Condition.Requires(endpoint, "endpoint").IsNotNullOrEmpty();
-            _keys = keys;
+            _authenticator = new Authenticator(keys);
             _http = new HttpClient();
             _http.BaseAddress = new Uri(endpoint);
             _http.Timeout = TimeSpan.FromSeconds(10);
@@ -54,7 +54,7 @@ namespace ExchangeApi.Coinbase.REST
         {
             Condition.Requires(product, "product").IsNotNullOrEmpty();
             var book = new FullOrderBook() { Time = GetServerTime() };
-            string content = SendRequest(HttpMethod.Get, String.Format("/products/{0}/book?level=3", product));
+            string content = SendRequest(HttpMethod.Get, String.Format("/products/{0}/book?level=3", product), null);
             // {
             //   "sequence": 12345,
             //   "bids": [[ "295.96", "0.05", "3b0f1225-7f84-490b-a29f-0faef9de823a" ]...],
@@ -82,9 +82,15 @@ namespace ExchangeApi.Coinbase.REST
             return book;
         }
 
+        public string CancelAll(string product = null)
+        {
+            string query = product == null ? "" : String.Format("?product_id={0}", product);
+            return SendRequest(HttpMethod.Delete, "/orders" + query, null);
+        }
+
         DateTime GetServerTime()
         {
-            string content = SendRequest(HttpMethod.Get, "/time");
+            string content = SendRequest(HttpMethod.Get, "/time", null);
             // {
             //   "iso": "2015-01-07T23:47:25.201Z",
             //   "epoch": 1420674445.201
@@ -99,13 +105,18 @@ namespace ExchangeApi.Coinbase.REST
         }
 
         // Throws on timeouts and server errors. Never returns null.
-        string SendRequest(HttpMethod method, string relativeUri)
+        string SendRequest(HttpMethod method, string relativeUri, string json)
         {
             _log.Info("OUT: {0} {1}", method.ToString().ToUpper(), relativeUri);
             try
             {
                 _rateLimiter.Request().Wait();
                 var req = new HttpRequestMessage(method, relativeUri);
+                if (json != null) req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                // If the keys weren't specified in the constructor, authenticator won't sign the request.
+                // If the keys were specified, we are signing all requests, even the ones that don't need
+                // to be signed.
+                _authenticator.Sign(method, relativeUri, json, req.Headers);
                 HttpResponseMessage resp = _http.SendAsync(req, HttpCompletionOption.ResponseContentRead).Result;
                 string content = resp.EnsureSuccessStatusCode().Content.ReadAsStringAsync().Result;
                 // Truncate() to avoid logging 500Kb of data.
