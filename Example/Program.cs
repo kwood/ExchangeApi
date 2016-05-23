@@ -1,4 +1,5 @@
-﻿using ExchangeApi;
+﻿using Conditions;
+using ExchangeApi;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -175,10 +176,26 @@ namespace Example
             };
             using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST, keys))
             {
-                var req = new ExchangeApi.Coinbase.REST.CancelAllRequest();
-                _log.Info("CancelAll(): {0}", client.SendRequest(req).Result);
-                req.Product = "BTC-USD";
-                _log.Info("CancelAll(BTC-USD): {0}", client.SendRequest(req).Result);
+                client.SendRequest(new ExchangeApi.Coinbase.REST.CancelAllRequest()).Wait();
+                string orderId = client.SendRequest(new ExchangeApi.Coinbase.REST.NewOrderRequest()
+                {
+                    ClientOrderId = Guid.NewGuid().ToString(),
+                    Side = ExchangeApi.Coinbase.Side.Sell,
+                    ProductId = "BTC-EUR",
+                    Price = 500m,
+                    Size = 0.01m,
+                    TimeInForce = ExchangeApi.Coinbase.REST.TimeInForce.GTT,
+                    CancelAfter = ExchangeApi.Coinbase.REST.CancelAfter.Min,
+                    PostOnly = true,
+                }).Result.OrderId;
+                client.SendRequest(new ExchangeApi.Coinbase.REST.CancelOrderRequest()
+                {
+                    OrderId = orderId,
+                }).Wait();
+                client.SendRequest(new ExchangeApi.Coinbase.REST.CancelOrderRequest()
+                {
+                    OrderId = orderId,
+                }).Wait();
             }
         }
 

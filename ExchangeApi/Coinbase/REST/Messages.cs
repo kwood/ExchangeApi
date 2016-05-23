@@ -83,7 +83,7 @@ namespace ExchangeApi.Coinbase.REST
         // One example is "BTC-USD".
         //
         // Must not be null.
-        public string Product;
+        public string Product { get; set; }
 
         public HttpMethod HttpMethod { get { return HttpMethod.Get; } }
         public bool IsAuthenticated { get { return false; } }
@@ -131,7 +131,7 @@ namespace ExchangeApi.Coinbase.REST
         // One example is "BTC-USD".
         //
         // If null, cancel orders for all products.
-        public string Product;
+        public string Product { get; set; }
 
         public HttpMethod HttpMethod { get { return HttpMethod.Delete; } }
         public bool IsAuthenticated { get { return true; } }
@@ -140,6 +140,126 @@ namespace ExchangeApi.Coinbase.REST
         public IEnumerable<KV> Parameters()
         {
             yield return new KV("product_id", Product);
+        }
+    }
+
+    public class NewOrderResponse : Util.Printable<NewOrderResponse>, IResponse
+    {
+        public string OrderId { get; private set; }
+
+        public void Parse(string s)
+        {
+            OrderId = (string)Json.ParseObject(s)["id"];
+        }
+    }
+
+    public enum TimeInForce
+    {
+        // Good till canceled orders remain open on the book until canceled. This is the default behavior if
+        // no policy is specified.
+        GTC,
+        // Good till time orders remain open on the book until canceled or the allotted cancel_after is
+        // depleted on the matching engine. GTT orders are guaranteed to cancel before any other order is
+        // processed after the CancelAfter timestamp which is returned by the API. A day is considered 24 hours.
+        GTT,
+        // Immediate or cancel orders instantly cancel the remaining size of the limit order instead of
+        // opening it on the book.
+        IOC,
+        // Fill or kill orders are rejected if the entire size cannot be matched.
+        FOK,
+    }
+
+    public enum CancelAfter
+    {
+        Min,   // One minute.
+        Hour,  // One hour.
+        Day,   // 24 hours.
+    }
+
+    public enum SelfTradePrevention
+    {
+        DC,  // Decrease and Cancel (default).
+        CO,  // Cancel oldest.
+        CN,  // Cancel newest.
+        CB,  // Cancel both.
+    }
+
+    // Only limit orders are currently supported. Market and stop orders can be supported if necessary.
+    public class NewOrderRequest : Util.Printable<NewOrderRequest>, IRequest<NewOrderResponse>
+    {
+        // [optional] Order ID selected by you to identify your order.
+        public string ClientOrderId { get; set; }
+        public Side Side { get; set; }
+        // See https://api.exchange.coinbase.com/products for the full list of products.
+        // One example is "BTC-USD".
+        public string ProductId { get; set; }
+        // [optional] Self-trade prevention flag.
+        public SelfTradePrevention SelfTradePrevention { get; set; }
+        // Price per bitcoin.
+        public decimal Price { get; set; }
+        // Amount of BTC to buy or sell.
+        public decimal Size { get; set; }
+        // [optional] GTC, GTT, IOC, or FOK (default is GTC).
+        public TimeInForce TimeInForce { get; set; }
+        // Requires TimeInForce to be GTT.
+        public CancelAfter? CancelAfter { get; set; }
+        // [optional] Invalid when TimeInForce is IOC or FOK.
+        public bool PostOnly { get; set; }
+
+        public HttpMethod HttpMethod { get { return HttpMethod.Post; } }
+        public bool IsAuthenticated { get { return true; } }
+        public string RelativeUrl { get { return "/orders"; } }
+
+        public IEnumerable<KV> Parameters()
+        {
+            Condition.Requires(ProductId, "ProductId").IsNotNull();
+            if (TimeInForce == TimeInForce.GTT)
+                Condition.Requires(CancelAfter, "CancelAfter").IsNotNull();
+            if (CancelAfter.HasValue)
+                Condition.Requires(TimeInForce, "TimeInForce").IsEqualTo(TimeInForce.GTT);
+            if (TimeInForce == TimeInForce.IOC || TimeInForce == TimeInForce.FOK)
+                Condition.Requires(PostOnly, "PostOnly").IsFalse();
+            yield return new KV("client_oid", ClientOrderId);
+            yield return new KV("side", Side.ToString().ToLower());
+            yield return new KV("product_id", ProductId);
+            yield return new KV("stp", SelfTradePrevention.ToString().ToLower());
+            yield return new KV("price", Price.ToString());
+            yield return new KV("size", Size.ToString());
+            yield return new KV("time_in_force", TimeInForce.ToString().ToUpper());
+            if (CancelAfter.HasValue) yield return new KV("cancel_after", CancelAfter.ToString().ToLower());
+            if (PostOnly) yield return new KV("post_only", "true");
+        }
+    }
+
+    public class CancelOrderResponse : Util.Printable<CancelOrderResponse>, IResponse
+    {
+        public void Parse(string s)
+        {
+            // TODO: extract reason. We need to differentiate between two types of errors:
+            // 1. Order can't be cancelled because it's already done (filled or cancelled).
+            // 2. All other errors.
+            //
+            // Coinbase gives us HTTP 400 plus a JSON object with a specific message string
+            // in case of (1).
+        }
+    }
+
+    public class CancelOrderRequest : Util.Printable<CancelOrderRequest>, IRequest<CancelOrderResponse>
+    {
+        // The server-assigned order id and not the optional ClientOrderId.
+        public string OrderId { get; set; }
+
+        public HttpMethod HttpMethod { get { return HttpMethod.Delete; } }
+        public bool IsAuthenticated { get { return true; } }
+        public IEnumerable<KV> Parameters() { return null; }
+
+        public string RelativeUrl
+        {
+            get
+            {
+                Condition.Requires(OrderId, "OrderId").IsNotNullOrEmpty();
+                return String.Format("/orders/{0}", OrderId);
+            }
         }
     }
 }
