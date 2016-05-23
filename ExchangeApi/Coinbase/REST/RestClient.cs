@@ -118,9 +118,13 @@ namespace ExchangeApi.Coinbase.REST
                 // to be signed.
                 _authenticator.Sign(method, relativeUri, json, req.Headers);
                 HttpResponseMessage resp = _http.SendAsync(req, HttpCompletionOption.ResponseContentRead).Result;
-                string content = resp.EnsureSuccessStatusCode().Content.ReadAsStringAsync().Result;
+                string content = resp.Content.ReadAsStringAsync().Result;
                 // Truncate() to avoid logging 500Kb of data.
-                _log.Info("IN: {0}", Util.Strings.Truncate(content));
+                if (resp.IsSuccessStatusCode)
+                    _log.Info("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
+                else
+                    _log.Warn("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
+                resp.EnsureSuccessStatusCode();
                 return content;
             }
             catch (Exception e)
