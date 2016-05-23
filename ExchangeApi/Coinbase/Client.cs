@@ -150,9 +150,13 @@ namespace ExchangeApi.Coinbase
 
         void RefreshOrderBook(string product, OrderBookBuilder book)
         {
-            REST.FullOrderBook snapshot = _restClient.GetProductOrderBook(product);
+            // Coinbase doesn't give us server time together with the full order book,
+            // so we retrieve it with a separate request BEFORE requesting the order book.
+            DateTime serverTime = _restClient.SendRequest(new REST.TimeRequest()).Result.Time;
+            REST.OrderBookResponse snapshot =
+                _restClient.SendRequest(new REST.OrderBookRequest() { Product = product }).Result;
             DateTime received = DateTime.UtcNow;
-            OrderBookDelta delta = book.OnSnapshot(snapshot);  // Throws if the snapshot is malformed.
+            OrderBookDelta delta = book.OnSnapshot(serverTime, snapshot);  // Throws if the snapshot is malformed.
             if (delta != null && (delta.Bids.Any() || delta.Asks.Any()))
             {
                 try

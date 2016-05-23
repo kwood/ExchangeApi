@@ -41,7 +41,12 @@ namespace ExchangeApi.Coinbase
         public void Sign(HttpMethod method, string relativeUrl, string body, HttpHeaders headers)
         {
             // No keys specified, can't sign.
-            if (_key == null) return;
+            if (_key == null)
+            {
+                throw new ArgumentException(
+                    String.Format("{0} {1} requires authentication but API keys haven't been provided.",
+                                  method, relativeUrl));
+            }
             string timestamp = Time.ToUnixSeconds(DateTime.UtcNow).ToString();
             headers.Add("CB-ACCESS-KEY", _key);
             headers.Add("CB-ACCESS-SIGN", Signature(timestamp, method.ToString(), relativeUrl, body));

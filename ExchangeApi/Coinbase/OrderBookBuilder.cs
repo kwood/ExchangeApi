@@ -24,7 +24,7 @@ namespace ExchangeApi.Coinbase
         SortedDictionary<decimal, Level> _bids = new SortedDictionary<decimal, Level>();
         SortedDictionary<decimal, Level> _asks = new SortedDictionary<decimal, Level>();
 
-        public OrderBookDelta OnSnapshot(REST.FullOrderBook snapshot)
+        public OrderBookDelta OnSnapshot(DateTime serverTime, REST.OrderBookResponse snapshot)
         {
             Condition.Requires(snapshot, "snapshot").IsNotNull();
             Condition.Requires(snapshot.Sequence, "snapshot.Sequence").IsGreaterOrEqual(_seqNum);
@@ -32,7 +32,7 @@ namespace ExchangeApi.Coinbase
             var asks = Aggregate(snapshot.Asks);
             var delta = new OrderBookDelta()
             {
-                Time = snapshot.Time,
+                Time = serverTime,
                 Bids = Diff(_bids, bids).ToList(),
                 Asks = Diff(_asks, asks).ToList(),
                 Sequence = snapshot.Sequence,

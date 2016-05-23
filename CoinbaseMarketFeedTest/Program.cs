@@ -55,7 +55,7 @@ namespace CoinbaseMarketFeedTest
             Merge(book.Asks, delta.Asks);
         }
 
-        static void Convert(ExchangeApi.Coinbase.REST.FullOrderBook src, OrderBook dst)
+        static void Convert(ExchangeApi.Coinbase.REST.OrderBookResponse src, OrderBook dst)
         {
             Action<List<ExchangeApi.Coinbase.REST.Order>, SortedDictionary<decimal, decimal>> Cvt = (from, to) =>
             {
@@ -141,7 +141,8 @@ namespace CoinbaseMarketFeedTest
                     }
                     // Sleep on the scheduler thread in order to fall behind on the order book.
                     Thread.Sleep(20000);
-                    ExchangeApi.Coinbase.REST.FullOrderBook full = restClient.GetProductOrderBook("BTC-USD");
+                    ExchangeApi.Coinbase.REST.OrderBookResponse full =
+                        restClient.SendRequest(new ExchangeApi.Coinbase.REST.OrderBookRequest() { Product = "BTC-USD" }).Result;
                     if (full.Sequence <= book.Sequence)
                     {
                         _log.Info("Order book isn't behind");

@@ -128,10 +128,17 @@ namespace Example
 
         static void CoinbaseClient()
         {
+            var keys = new ExchangeApi.Coinbase.Keys()
+            {
+                Key = "MY_KEY",
+                Secret = "MY_SECRET",
+                Passphrase = "MY_PASSPHRASE",
+            };
             var cfg = new ExchangeApi.Coinbase.Config()
             {
                 Endpoint = ExchangeApi.Coinbase.Instance.Prod,
                 Products = new List<string>() { "BTC-USD", "BTC-EUR", "BTC-GBP", "BTC-CAD" },
+                Keys = keys,
             };
             using (var client = new ExchangeApi.Coinbase.Client(cfg))
             {
@@ -160,11 +167,18 @@ namespace Example
 
         static void CoinbaseRest()
         {
-            using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST, null))
+            var keys = new ExchangeApi.Coinbase.Keys()
             {
-                ExchangeApi.Coinbase.REST.FullOrderBook book = client.GetProductOrderBook("BTC-USD");
-                _log.Info("Order book sequence: {0}", book.Sequence);
-                _log.Info("Order book has {0} bids(s) and {1} ask(s)", book.Bids.Count, book.Asks.Count);
+                Key = "MY_KEY",
+                Secret = "MY_SECRET",
+                Passphrase = "MY_PASSPHRASE",
+            };
+            using (var client = new ExchangeApi.Coinbase.REST.RestClient(ExchangeApi.Coinbase.Instance.Prod.REST, keys))
+            {
+                var req = new ExchangeApi.Coinbase.REST.CancelAllRequest();
+                _log.Info("CancelAll(): {0}", client.SendRequest(req).Result);
+                req.Product = "BTC-USD";
+                _log.Info("CancelAll(BTC-USD): {0}", client.SendRequest(req).Result);
             }
         }
 
@@ -175,8 +189,8 @@ namespace Example
                 // RawConnection();
                 // OkCoinClient();
                 // OkCoinRest();
-                CoinbaseClient();
-                // CoinbaseRest();
+                // CoinbaseClient();
+                CoinbaseRest();
             }
             catch (Exception e)
             {

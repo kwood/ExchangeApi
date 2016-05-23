@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 namespace ExchangeApi.Coinbase.REST
 {
+    using KV = KeyValuePair<string, string>;
+
     // See https://docs.exchange.coinbase.com/#api.
     public class RestClient : IDisposable
     {
@@ -23,7 +25,9 @@ namespace ExchangeApi.Coinbase.REST
         // From https://docs.exchange.coinbase.com/#rate-limits:
         //
         //   We throttle public endpoints by IP: 3 requests per second, up to 6 requests per second in bursts.
-        readonly RateLimiter _rateLimiter = new RateLimiter(TimeSpan.FromSeconds(1), 3);
+        //   We throttle private endpoints by user ID: 5 requests per second, up to 10 requests per second in bursts.
+        readonly RateLimiter _publicRateLimiter = new RateLimiter(TimeSpan.FromSeconds(1), 3);
+        readonly RateLimiter _privateRateLimiter = new RateLimiter(TimeSpan.FromSeconds(1), 5);
 
         // `keys` may be null, in which case authenticated requests won't be supported.
         public RestClient(string endpoint, Keys keys)
@@ -37,101 +41,98 @@ namespace ExchangeApi.Coinbase.REST
             _http.DefaultRequestHeaders.Add("User-Agent", "romkatv.github.com");
         }
 
-        // Throws on timeouts, server and parse errors. Never returns null.
-        //
-        // Order book can be pretty big. 500Kb HTTP response with 8k orders in it is normal. Pulling
-        // it takes about 1 second. Don't call this method too frequently or Coinbase will ban you.
-        //
-        // From https://docs.exchange.coinbase.com/#get-product-order-book:
-        //
-        //   Level 3 is only recommended for users wishing to maintain a full real-time order book
-        //   using the websocket stream. Abuse of Level 3 via polling will cause your access to be
-        //   limited or blocked.
-        //
-        // See https://api.exchange.coinbase.com/products for the full list of products.
-        // One example is "BTC-USD".
-        public FullOrderBook GetProductOrderBook(string product)
-        {
-            Condition.Requires(product, "product").IsNotNullOrEmpty();
-            var book = new FullOrderBook() { Time = GetServerTime() };
-            string content = SendRequest(HttpMethod.Get, String.Format("/products/{0}/book?level=3", product), null);
-            // {
-            //   "sequence": 12345,
-            //   "bids": [[ "295.96", "0.05", "3b0f1225-7f84-490b-a29f-0faef9de823a" ]...],
-            //   "asks": [[ "296.12", "0.17", "da863862-25f4-4868-ac41-005d11ab0a5f" ]...],
-            // }
-            JObject root = Json.ParseObject(content);
-            Func<JArray, List<Order>> ParseOrders = (orders) =>
-            {
-                Condition.Requires(orders, "orders").IsNotNull();
-                var res = new List<Order>();
-                foreach (var order in orders)
-                {
-                    res.Add(new Order()
-                    {
-                        Id = (string)order[2],
-                        Price = (decimal)order[0],
-                        Quantity = (decimal)order[1],
-                    });
-                }
-                return res;
-            };
-            book.Sequence = (long)root["sequence"];
-            book.Bids = ParseOrders((JArray)root["bids"]);
-            book.Asks = ParseOrders((JArray)root["asks"]);
-            return book;
-        }
-
-        public string CancelAll(string product = null)
-        {
-            string query = product == null ? "" : String.Format("?product_id={0}", product);
-            return SendRequest(HttpMethod.Delete, "/orders" + query, null);
-        }
-
-        DateTime GetServerTime()
-        {
-            string content = SendRequest(HttpMethod.Get, "/time", null);
-            // {
-            //   "iso": "2015-01-07T23:47:25.201Z",
-            //   "epoch": 1420674445.201
-            // }
-            return (DateTime)Json.ParseObject(content)["iso"];
-        }
-
         public void Dispose()
         {
             try { _http.Dispose(); }
             catch (Exception e) { _log.Warn(e, "Ignoring exception from HttpClient.Dispose()"); }
         }
 
-        // Throws on timeouts and server errors. Never returns null.
-        string SendRequest(HttpMethod method, string relativeUri, string json)
+        // Throws asynchronously on timeouts, server errors. Never returns null and never throws synchronously.
+        //
+        // If it's not possible to send the request right away due to rate limits, waits.
+        public async Task<TResponse> SendRequest<TResponse>(IRequest<TResponse> req) where TResponse : IResponse, new()
         {
-            _log.Info("OUT: {0} {1}", method.ToString().ToUpper(), relativeUri);
+            RateLimiter limiter = req.IsAuthenticated ? _privateRateLimiter : _publicRateLimiter;
+            await limiter.Request();
+            return await DoSendRequest(req);
+        }
+
+        // Throws asynchronously on timeouts, server errors and rate limits. Never returns null and never throws synchronously.
+        //
+        // If it's not possible to send the request right away due to rate limits, fails immediately.
+        public async Task<TResponse> TrySendRequest<TResponse>(IRequest<TResponse> req) where TResponse : IResponse, new()
+        {
+            RateLimiter limiter = req.IsAuthenticated ? _privateRateLimiter : _publicRateLimiter;
+            if (!limiter.TryRequest())
+            {
+                await Task.Run(() => { throw new ArgumentException("Rate limited"); });
+            }
+            return await DoSendRequest(req);
+        }
+
+        // Throws on timeouts and server errors. Never returns null.
+        async Task<TResponse> DoSendRequest<TResponse>(IRequest<TResponse> req) where TResponse : IResponse, new()
+        {
             try
             {
-                _rateLimiter.Request().Wait();
-                var req = new HttpRequestMessage(method, relativeUri);
-                if (json != null) req.Content = new StringContent(json, Encoding.UTF8, "application/json");
-                // If the keys weren't specified in the constructor, authenticator won't sign the request.
-                // If the keys were specified, we are signing all requests, even the ones that don't need
-                // to be signed.
-                _authenticator.Sign(method, relativeUri, json, req.Headers);
-                HttpResponseMessage resp = _http.SendAsync(req, HttpCompletionOption.ResponseContentRead).Result;
-                string content = resp.Content.ReadAsStringAsync().Result;
+                var msg = new HttpRequestMessage(req.HttpMethod, req.RelativeUrl);
+                string relativeUrl = req.RelativeUrl;
+                string body = null;
+                if (req.HttpMethod == HttpMethod.Post)
+                {
+                    body = ToJsonString(req.Parameters());
+                }
+                else
+                {
+                    relativeUrl = AppendQueryParams(relativeUrl, ToUrlQuery(req.Parameters()));
+                }
+
+                if (body != null) msg.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                if (req.IsAuthenticated)
+                {
+                    // If the keys weren't specified in the constructor, authenticator will throw.
+                    _authenticator.Sign(req.HttpMethod, req.RelativeUrl, body, msg.Headers);
+                }
+                _log.Info("OUT: {0} {1} {2}", req.HttpMethod.ToString().ToUpper(), relativeUrl, body);
+                HttpResponseMessage resp = await _http.SendAsync(msg, HttpCompletionOption.ResponseContentRead);
+                string content = await resp.Content.ReadAsStringAsync();
                 // Truncate() to avoid logging 500Kb of data.
                 if (resp.IsSuccessStatusCode)
                     _log.Info("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
                 else
                     _log.Warn("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
                 resp.EnsureSuccessStatusCode();
-                return content;
+                var res = new TResponse();
+                res.Parse(content);
+                return res;
             }
             catch (Exception e)
             {
                 _log.Warn(e, "IO error");
                 throw;
             }
+        }
+
+        static string ToJsonString(IEnumerable<KV> param)
+        {
+            if (param == null) return null;
+            string obj = String.Join(", ", param.Where(p => p.Value != null)
+                                                .Select(p => String.Format("\"{0}\": \"{1}\"", p.Key, p.Value)));
+            return String.Format("{{{0}}}", obj);
+        }
+
+        static string ToUrlQuery(IEnumerable<KV> param)
+        {
+            if (param == null) return null;
+            return String.Join("&", param.Where(p => p.Value != null)
+                                         .Select(p => String.Format("{0}={1}", p.Key, p.Value)));
+        }
+
+        static string AppendQueryParams(string url, string query)
+        {
+            if (String.IsNullOrEmpty(query)) return url;
+            string delim = url.Contains("?") ? "&" : "?";
+            return String.Format("{0}{1}{2}", url, delim, query);
         }
     }
 }
