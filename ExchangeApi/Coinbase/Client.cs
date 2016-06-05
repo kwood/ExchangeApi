@@ -43,6 +43,7 @@ namespace ExchangeApi.Coinbase
         readonly Config _cfg;
         readonly DurableConnection<WebSocket.IMessageIn, WebSocket.IMessageOut> _connection;
         readonly REST.RestClient _restClient;
+        readonly OrderManager _orderManager;
 
         readonly Dictionary<string, OrderBookBuilder> _products = new Dictionary<string, OrderBookBuilder>();
 
@@ -58,6 +59,7 @@ namespace ExchangeApi.Coinbase
             _connection.OnConnection += OnConnection;
             _connection.OnMessage += OnMessage;
             _restClient = new REST.RestClient(_cfg.Endpoint.REST, _cfg.Keys);
+            _orderManager = new OrderManager(_cfg.Scheduler);
             foreach (string product in _cfg.Products)
             {
                 _products.Add(product, new OrderBookBuilder());
@@ -81,8 +83,79 @@ namespace ExchangeApi.Coinbase
 
         // Arguments are never null. The first is product ID.
         // If there is a trade, OnTrade triggers first, followed immediately by OnOrderBook.
+        // The order book includes our own orders.
         public event Action<string, TimestampedMsg<OrderBookDelta>> OnOrderBook;
+        // Doesn't include our own trades.
         public event Action<string, TimestampedMsg<Trade>> OnTrade;
+
+        // The callback is called indeterminate number of times. The last call is made either with
+        // TimestampedMsg.Value = null or with OrderUpdate.Finished = true. The former happens in the
+        // following cases:
+        //
+        //   1. Unable to send request (e.g., due to exceeding the rate limits).
+        //   2. The exchange didn't reply to our request for a long time and probably never will.
+        //   3. After we attempted to cancel the order, the exchange told us it's invalid.
+        public void Send(NewOrder req, Action<TimestampedMsg<OrderUpdate>> cb)
+        {
+            Condition.Requires(req, "req").IsNotNull();
+            Condition.Requires(req.ProductId, "req.ProductId").IsNotNullOrEmpty();
+            Condition.Requires(req.Price, "req.Price").IsGreaterThan(0m);
+            Condition.Requires(req.Size, "req.Size").IsGreaterThan(0m);
+            Condition.Requires(cb, "cb").IsNotNull();
+            _cfg.Scheduler.Schedule(() =>
+            {
+                var clientOrderId = Guid.NewGuid().ToString();
+                Task<REST.NewOrderResponse> resp = _restClient.TrySendRequest(new REST.NewOrderRequest()
+                {
+                    ClientOrderId = clientOrderId,
+                    Side = req.Side,
+                    ProductId = req.ProductId,
+                    Price = req.Price,
+                    Size = req.Size,
+                    TimeInForce = REST.TimeInForce.GTT,
+                    CancelAfter = REST.CancelAfter.Min,  // Auto-cancel after 1 minute.
+                    PostOnly = true,  // Don't take liquidity to avoid fees.
+                    SelfTradePrevention = REST.SelfTradePrevention.DC,  // Decrease and cancel.
+                });
+                if (resp == null)
+                {
+                    // Rate limited.
+                    try { cb(null); }
+                    catch (Exception e) { _log.Warn(e, "Ignoring exception from order callback"); }
+                    return;
+                }
+                _orderManager.Add(clientOrderId, cb);
+                // We don't care whether the REST request succeds or not. We always act as if it succeeded.
+                // We could in theory handle some types of errors specially: if we know the order defintely
+                // didn't succeed (e.g., HTTP 400), we don't really need to wait for 30 seconds to find out.
+                // But in most cases the errors are inconclusive (e.g., timeout), and we have to wait.
+            });
+        }
+
+        public void Send(CancelOrder order)
+        {
+            Condition.Requires(order, "order").IsNotNull();
+            Condition.Requires(order.OrderId, "order.OrderId").IsNotNull();
+            _cfg.Scheduler.Schedule(() =>
+            {
+                if (!_orderManager.CanCancel(order.OrderId)) return;
+                Task<REST.CancelOrderResponse> resp =
+                    _restClient.TrySendRequest(new REST.CancelOrderRequest() { OrderId = order.OrderId });
+                if (resp == null)
+                {
+                    // Rate limited.
+                    return;
+                }
+                _orderManager.Cancel(order.OrderId);
+                resp.ContinueWith((Task<REST.CancelOrderResponse> t) =>
+                {
+                    // Ignore REST errors. See comments at the bottom of the other overload of Send().
+                    if (t.IsFaulted) return;
+                    if (t.Result.Result == REST.CancelOrderResult.InvalidOrder)
+                        _cfg.Scheduler.Schedule(() => _orderManager.Invalidate(order.OrderId));
+                });
+            });
+        }
 
         void OnMessage(TimestampedMsg<WebSocket.IMessageIn> msg)
         {
@@ -90,6 +163,8 @@ namespace ExchangeApi.Coinbase
             Condition.Requires(msg.Value, "msg.Value").IsNotNull();
             Condition.Requires(msg.Value.ProductId, "msg.Value.ProductId").IsNotNullOrEmpty();
             Condition.Requires(_products.ContainsKey(msg.Value.ProductId));
+
+            bool myFill = _orderManager.OnMessage(msg);
 
             OrderBookBuilder book = _products[msg.Value.ProductId];
             OrderBookDelta delta = null;
@@ -106,7 +181,7 @@ namespace ExchangeApi.Coinbase
 
             if (ok)
             {
-                if (trade != null && trade.Size > 0m)
+                if (!myFill && trade != null && trade.Size > 0m)
                 {
                     try
                     {

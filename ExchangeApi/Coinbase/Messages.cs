@@ -44,4 +44,38 @@ namespace ExchangeApi.Coinbase
         // Maker order side.
         public Side Side { get; set; }
     }
+
+    public class NewOrder : Util.Printable<NewOrder>
+    {
+        public Side Side { get; set; }
+        // See https://api.exchange.coinbase.com/products for the full list of products.
+        // One example is "BTC-USD".
+        public string ProductId { get; set; }
+        // Price per bitcoin.
+        public decimal Price { get; set; }
+        // Amount of BTC to buy or sell.
+        public decimal Size { get; set; }
+    }
+
+    public class CancelOrder : Util.Printable<CancelOrder>
+    {
+        public string OrderId { get; set; }
+    }
+
+    public class Fill
+    {
+        public decimal Size { get; set; }
+        public decimal Price { get; set; }
+    }
+
+    public class OrderUpdate : Util.Printable<OrderUpdate>
+    {
+        public string OrderId { get; set; }
+        public DateTime Time { get; set; }
+        // If Fill is present, the Unfilled size is *after* the fill is taken into account.
+        public decimal Unfilled { get; set; }
+        public bool Finished { get; set; }
+        // May be null.
+        public Fill Fill { get; set; }
+    }
 }

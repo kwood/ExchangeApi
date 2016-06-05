@@ -57,17 +57,16 @@ namespace ExchangeApi.Coinbase.REST
             return await DoSendRequest(req);
         }
 
-        // Throws asynchronously on timeouts, server errors and rate limits. Never returns null and never throws synchronously.
-        //
-        // If it's not possible to send the request right away due to rate limits, fails immediately.
-        public async Task<TResponse> TrySendRequest<TResponse>(IRequest<TResponse> req) where TResponse : IResponse, new()
+        // Returns null on rate limits. Throws asynchronously on timeouts and server errors. Never throws synchronously.
+        public Task<TResponse> TrySendRequest<TResponse>(IRequest<TResponse> req) where TResponse : IResponse, new()
         {
             RateLimiter limiter = req.IsAuthenticated ? _privateRateLimiter : _publicRateLimiter;
             if (!limiter.TryRequest())
             {
-                await Task.Run(() => { throw new ArgumentException("Rate limited"); });
+                _log.Info("Rate limited. Can't send request: {0}", req);
+                return null;
             }
-            return await DoSendRequest(req);
+            return DoSendRequest(req);
         }
 
         // Throws on timeouts and server errors. Never returns null.
