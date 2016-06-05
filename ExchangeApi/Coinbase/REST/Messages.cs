@@ -8,12 +8,22 @@ namespace ExchangeApi.Coinbase.REST
 {
     using Conditions;
     using Newtonsoft.Json.Linq;
+    using System.Net;
     using System.Net.Http;
     using KV = KeyValuePair<string, string>;
 
+    public static class HttpStatusCodeExtension
+    {
+        public static void EnsureSuccess(this HttpStatusCode status)
+        {
+            int code = (int)status;
+            if (code < 200 || code >= 300) throw new Exception("HTTP error: " + status);
+        }
+    }
+
     public interface IResponse
     {
-        void Parse(string s);
+        void Parse(HttpStatusCode status, string content);
     }
 
     public interface IRequest<TResponse> where TResponse : IResponse, new()
@@ -48,8 +58,9 @@ namespace ExchangeApi.Coinbase.REST
         public List<Order> Bids { get; private set; }
         public List<Order> Asks { get; private set; }
 
-        public void Parse(string s)
+        public void Parse(HttpStatusCode status, string s)
         {
+            status.EnsureSuccess();
             // {
             //   "sequence": 12345,
             //   "bids": [[ "295.96", "0.05", "3b0f1225-7f84-490b-a29f-0faef9de823a" ]...],
@@ -103,8 +114,9 @@ namespace ExchangeApi.Coinbase.REST
     {
         public DateTime Time { get; private set; }
 
-        public void Parse(string s)
+        public void Parse(HttpStatusCode status, string s)
         {
+            status.EnsureSuccess();
             Time = (DateTime)Json.ParseObject(s)["iso"];
         }
     }
@@ -119,8 +131,9 @@ namespace ExchangeApi.Coinbase.REST
 
     public class CancelAllResponse : Util.Printable<CancelAllResponse>, IResponse
     {
-        public void Parse(string s)
+        public void Parse(HttpStatusCode status, string s)
         {
+            status.EnsureSuccess();
             // The response contains order IDs of the cancelled orders. We don't need them.
         }
     }
@@ -147,8 +160,9 @@ namespace ExchangeApi.Coinbase.REST
     {
         public string OrderId { get; private set; }
 
-        public void Parse(string s)
+        public void Parse(HttpStatusCode status, string s)
         {
+            status.EnsureSuccess();
             OrderId = (string)Json.ParseObject(s)["id"];
         }
     }
@@ -231,16 +245,33 @@ namespace ExchangeApi.Coinbase.REST
         }
     }
 
+    public enum CancelOrderResult
+    {
+        Success,
+        InvalidOrder,
+    }
+
     public class CancelOrderResponse : Util.Printable<CancelOrderResponse>, IResponse
     {
-        public void Parse(string s)
+        public CancelOrderResult Result;
+
+        public void Parse(HttpStatusCode status, string s)
         {
-            // TODO: extract reason. We need to differentiate between two types of errors:
+            // We need to differentiate between two types of errors:
             // 1. Order can't be cancelled because it's already done (filled or cancelled).
             // 2. All other errors.
             //
             // Coinbase gives us HTTP 400 plus a JSON object with a specific message string
-            // in case of (1).
+            // in case of (1) but the error strings aren't documented. We can either rely on the
+            // exact undocumented strings or assume that HTTP 400 always means invalid order.
+            // In the absence of bugs the latter assumption should hold true, so we go with it.
+            if (status == HttpStatusCode.BadRequest)
+            {
+                Result = CancelOrderResult.InvalidOrder;
+                return;
+            }
+            status.EnsureSuccess();
+            Result = CancelOrderResult.Success;
         }
     }
 

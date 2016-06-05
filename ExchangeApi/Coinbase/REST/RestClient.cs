@@ -97,13 +97,9 @@ namespace ExchangeApi.Coinbase.REST
                 HttpResponseMessage resp = await _http.SendAsync(msg, HttpCompletionOption.ResponseContentRead);
                 string content = await resp.Content.ReadAsStringAsync();
                 // Truncate() to avoid logging 500Kb of data.
-                if (resp.IsSuccessStatusCode)
-                    _log.Info("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
-                else
-                    _log.Warn("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
-                resp.EnsureSuccessStatusCode();
+                _log.Info("IN: HTTP {0} ({1}): {2}", (int)resp.StatusCode, resp.StatusCode, Util.Strings.Truncate(content));
                 var res = new TResponse();
-                res.Parse(content);
+                res.Parse(resp.StatusCode, content);
                 return res;
             }
             catch (Exception e)
