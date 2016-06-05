@@ -155,7 +155,7 @@ namespace ExchangeApi.OkCoin
         // Action `done` will be called exactly once in the scheduler thread.
         // Its argument will be null on timeout.
         //
-        // Send() throws iif req is null. It doesn't block.
+        // Send() throws iff req is null. It doesn't block.
         public void Send(NewSpotRequest req, Action<TimestampedMsg<NewOrderResponse>> done)
         {
             _gateway.Send(req, CastCallback(done));
