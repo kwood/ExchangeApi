@@ -233,10 +233,14 @@ namespace ExchangeApi.Coinbase
 
         void OnConnection(IReader<WebSocket.IMessageIn> reader, IWriter<WebSocket.IMessageOut> writer)
         {
-            _restClient.SendRequest(new REST.CancelAllRequest() { }).Wait();
             foreach (var p in _products)
             {
                 writer.Send(new WebSocket.SubscribeRequest() { ProductId = p.Key });
+            }
+            // This request will miss orders that aren't open yet on the exchange.
+            _restClient.SendRequest(new REST.CancelAllRequest() { }).Wait();
+            foreach (var p in _products)
+            {
                 RefreshOrderBook(p.Key, p.Value);
             }
         }
