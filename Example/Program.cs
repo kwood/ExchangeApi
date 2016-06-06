@@ -46,12 +46,12 @@ namespace Example
                 Endpoint = ExchangeApi.OkCoin.Instance.OkCoinCom,
                 Keys = new ExchangeApi.OkCoin.Keys()
                 {
-                    ApiKey = "MY_API_KEY",
-                    SecretKey = "MY_SECRET_KEY",
+                    ApiKey = "MY_KEY",
+                    SecretKey = "MY_SECRET",
                 },
                 Products = new List<ExchangeApi.OkCoin.Product>()
                 {
-                    ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot"),
+                    // ExchangeApi.OkCoin.Instrument.Parse("btc_usd_spot"),
                     ExchangeApi.OkCoin.Instrument.Parse("btc_usd_this_week"),
                 },
                 EnableMarketData = false,
@@ -90,13 +90,13 @@ namespace Example
                     _log.Info("OnCancelOrder(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg?.Value);
                 };
                 client.Connect();
-                Thread.Sleep(5000);
+                Thread.Sleep(7000);
                 var req = new ExchangeApi.OkCoin.NewFutureRequest()
                 {
                     Amount = new ExchangeApi.OkCoin.Amount()
                     {
                         Side = ExchangeApi.OkCoin.Side.Buy,
-                        Price = 420.90m,
+                        Price = 588.44m,
                         Quantity = 1m,
                     },
                     Product = ExchangeApi.OkCoin.Future.FromInstrument("btc_usd_this_week"),
@@ -138,7 +138,7 @@ namespace Example
             var cfg = new ExchangeApi.Coinbase.Config()
             {
                 Endpoint = ExchangeApi.Coinbase.Instance.Prod,
-                Products = new List<string>() { "BTC-USD", "BTC-EUR", "BTC-GBP", "BTC-CAD" },
+                Products = new List<string>() { "BTC-USD" },
                 Keys = keys,
             };
             using (var client = new ExchangeApi.Coinbase.Client(cfg))
@@ -159,9 +159,22 @@ namespace Example
                 {
                     _log.Info("OnTrade({0}, IsLast={1}): {2}", product, !client.Scheduler.HasReady(), msg.Value);
                 };
+                Action<TimestampedMsg<ExchangeApi.Coinbase.OrderUpdate>> OnOrder = msg =>
+                {
+                    _log.Error("OnOrder(IsLast={0}): {1}", !client.Scheduler.HasReady(), msg);
+                };
                 client.Connect();
                 Thread.Sleep(5000);
-                while (true) Thread.Sleep(5000);
+                client.Send(new ExchangeApi.Coinbase.NewOrder()
+                    {
+                        Price = 584.33m,
+                        Size = 0.01m,
+                        ProductId = "BTC-USD",
+                        Side = ExchangeApi.Coinbase.Side.Sell,
+                    },
+                    OnOrder);
+                while (true) Thread.Sleep(1000);
+
             }
             Thread.Sleep(2000);
         }
@@ -182,7 +195,7 @@ namespace Example
                     ClientOrderId = Guid.NewGuid().ToString(),
                     Side = ExchangeApi.Coinbase.Side.Sell,
                     ProductId = "BTC-EUR",
-                    Price = 500m,
+                    Price = 1000m,
                     Size = 0.01m,
                     TimeInForce = ExchangeApi.Coinbase.REST.TimeInForce.GTT,
                     CancelAfter = ExchangeApi.Coinbase.REST.CancelAfter.Min,
@@ -206,8 +219,8 @@ namespace Example
                 // RawConnection();
                 // OkCoinClient();
                 // OkCoinRest();
-                // CoinbaseClient();
-                CoinbaseRest();
+                CoinbaseClient();
+                // CoinbaseRest();
             }
             catch (Exception e)
             {
