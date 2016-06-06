@@ -25,10 +25,10 @@ namespace ExchangeApi.Coinbase
 
         // Web interface: https://exchange.coinbase.com/.
         public static Instance Prod = new Instance(
-            "wss://ws-feed.exchange.coinbase.com", "https://api.exchange.coinbase.com");
+            "wss://ws-feed.gdax.com", "https://api.gdax.com");
 
         // Web interface: https://public.sandbox.exchange.coinbase.com/.
         public static Instance Sandbox = new Instance(
-            "wss://ws-feed-public.sandbox.exchange.coinbase.com", "https://api-public.sandbox.exchange.coinbase.com");
+            "wss://ws-feed-public.sandbox.gdax.com", "https://api-public.sandbox.gdax.com");
     }
 }
