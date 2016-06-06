@@ -88,9 +88,9 @@ namespace ExchangeApi.Coinbase
         // Doesn't include our own trades.
         public event Action<string, TimestampedMsg<Trade>> OnTrade;
 
-        // The callback is called indeterminate number of times. The last call is made either with
-        // TimestampedMsg.Value = null or with OrderUpdate.Finished = true. The former happens in the
-        // following cases:
+        // The callback is called indeterminate number of times. Its argument is never null. The last
+        // call is made either with TimestampedMsg.Value = null or with OrderUpdate.Finished = true.
+        // The former happens in the following cases:
         //
         //   1. Unable to send request (e.g., due to exceeding the rate limits).
         //   2. The exchange didn't reply to our request for a long time and probably never will.
@@ -122,7 +122,7 @@ namespace ExchangeApi.Coinbase
                 if (resp == null)
                 {
                     // Rate limited.
-                    try { cb(null); }
+                    try { cb(new TimestampedMsg<OrderUpdate>() { Received = DateTime.UtcNow, Value = null }); }
                     catch (Exception e) { _log.Warn(e, "Ignoring exception from order callback"); }
                     return;
                 }

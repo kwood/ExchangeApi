@@ -56,7 +56,7 @@ namespace ExchangeApi.Coinbase
                 _log.Warn("New order request timed out: ClientOrderID = {0}", order.ClientOrderId);
                 _newOrders.Remove(order.ClientOrderId);
                 order.Callback = null;
-                try { cb(null); }
+                try { cb(new TimestampedMsg<OrderUpdate>() { Received = DateTime.UtcNow, Value = null }); }
                 catch (Exception e) { _log.Warn(e, "Ignoring exception from order callback"); }
             });
         }
@@ -70,7 +70,7 @@ namespace ExchangeApi.Coinbase
             var cb = order.Callback;
             order.Callback = null;
             _newOrders.Remove(clientOrderId);
-            try { cb(null); }
+            try { cb(new TimestampedMsg<OrderUpdate>() { Received = DateTime.UtcNow, Value = null }); }
             catch (Exception e) { _log.Warn(e, "Ignoring exception from order callback"); }
         }
 
@@ -113,7 +113,7 @@ namespace ExchangeApi.Coinbase
                 var cb = order.Callback;
                 order.Callback = null;
                 _openOrders.Remove(orderId);
-                try { cb(null); }
+                try { cb(new TimestampedMsg<OrderUpdate>() { Received = DateTime.UtcNow, Value = null }); }
                 catch (Exception e) { _log.Warn(e, "Ignoring exception from order callback"); }
             });
         }
