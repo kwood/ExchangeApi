@@ -156,14 +156,24 @@ namespace ExchangeApi.Coinbase.REST
         }
     }
 
+    public enum NewOrderResult
+    {
+        Success,
+        Reject,
+    }
+
     public class NewOrderResponse : Util.Printable<NewOrderResponse>, IResponse
     {
         public string OrderId { get; private set; }
+        public NewOrderResult Result { get; private set; }
 
-        public void Parse(HttpStatusCode status, string s)
+        public void Parse(HttpStatusCode httpStatus, string s)
         {
-            status.EnsureSuccess();
-            OrderId = (string)Json.ParseObject(s)["id"];
+            httpStatus.EnsureSuccess();
+            JObject root = Json.ParseObject(s);
+            OrderId = (string)root["id"];
+            var status = (string)root["status"];
+            Result = (string)root["status"] == "rejected" ? NewOrderResult.Reject : NewOrderResult.Success;
         }
     }
 

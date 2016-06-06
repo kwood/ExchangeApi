@@ -105,6 +105,8 @@ namespace ExchangeApi.Coinbase
             _cfg.Scheduler.Schedule(() =>
             {
                 var clientOrderId = Guid.NewGuid().ToString();
+                // We send our request from the scheduler thread in order to guarantee that "OrderReceived"
+                // notification doesn't arrive before we call OrderManager.Add().
                 Task<REST.NewOrderResponse> resp = _restClient.TrySendRequest(new REST.NewOrderRequest()
                 {
                     ClientOrderId = clientOrderId,
@@ -125,10 +127,19 @@ namespace ExchangeApi.Coinbase
                     return;
                 }
                 _orderManager.Add(clientOrderId, cb);
-                // We don't care whether the REST request succeds or not. We always act as if it succeeded.
-                // We could in theory handle some types of errors specially: if we know the order defintely
-                // didn't succeed (e.g., HTTP 400), we don't really need to wait for 30 seconds to find out.
-                // But in most cases the errors are inconclusive (e.g., timeout), and we have to wait.
+                resp.ContinueWith(t =>
+                {
+                    // We don't care about failures here. We always act as if our request succeeds.
+                    // We could in theory handle some types of errors specially: if we know the order defintely
+                    // didn't succeed (e.g., HTTP 400), we don't really need to wait for 30 seconds to find that
+                    // out. But in most cases the errors are inconclusive (e.g., timeout), and we have to wait.
+                    if (t.IsFaulted) return;
+                    REST.NewOrderResponse res = resp.Result;
+                    // Rejected orders don't appear in the websocket feed.
+                    if (res.Result == REST.NewOrderResult.Reject)
+                        _cfg.Scheduler.Schedule(() => _orderManager.Reject(clientOrderId));
+                });
+                
             });
         }
 
@@ -138,7 +149,13 @@ namespace ExchangeApi.Coinbase
             Condition.Requires(order.OrderId, "order.OrderId").IsNotNull();
             _cfg.Scheduler.Schedule(() =>
             {
-                if (!_orderManager.CanCancel(order.OrderId)) return;
+                if (!_orderManager.CanCancel(order.OrderId))
+                {
+                    _log.Info(
+                        "Ignoring cancellation request for an order that's already being cancelled: OrderID = {0}",
+                        order.OrderId);
+                    return;
+                }
                 Task<REST.CancelOrderResponse> resp =
                     _restClient.TrySendRequest(new REST.CancelOrderRequest() { OrderId = order.OrderId });
                 if (resp == null)
@@ -216,6 +233,7 @@ namespace ExchangeApi.Coinbase
 
         void OnConnection(IReader<WebSocket.IMessageIn> reader, IWriter<WebSocket.IMessageOut> writer)
         {
+            _restClient.SendRequest(new REST.CancelAllRequest() { }).Wait();
             foreach (var p in _products)
             {
                 writer.Send(new WebSocket.SubscribeRequest() { ProductId = p.Key });
