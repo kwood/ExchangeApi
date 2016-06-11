@@ -143,10 +143,18 @@ namespace ExchangeApi.Coinbase
             });
         }
 
-        public void Send(CancelOrder order)
+        // The result is false if the request can't be sent (e.g., the order is already being cancelled or
+        // the request is throttled).
+        //
+        // The task never throws and completes without doing any IO.
+        //
+        // WARNING: do not block on the task in the scheduler thread; it will lead to deadlock.
+        public Task<bool> Send(CancelOrder order)
         {
             Condition.Requires(order, "order").IsNotNull();
             Condition.Requires(order.OrderId, "order.OrderId").IsNotNull();
+            var res = new bool[] { false };
+            var task = new Task<bool>(() => res[0]);
             _cfg.Scheduler.Schedule(() =>
             {
                 if (!_orderManager.CanCancel(order.OrderId))
@@ -154,6 +162,7 @@ namespace ExchangeApi.Coinbase
                     _log.Info(
                         "Ignoring cancellation request for an order that's already being cancelled: OrderID = {0}",
                         order.OrderId);
+                    task.RunSynchronously();
                     return;
                 }
                 Task<REST.CancelOrderResponse> resp =
@@ -161,8 +170,12 @@ namespace ExchangeApi.Coinbase
                 if (resp == null)
                 {
                     // Rate limited.
+                    task.RunSynchronously();
                     return;
                 }
+                // Finish the task before the REST request is finished.
+                res[0] = true;
+                task.RunSynchronously();
                 _orderManager.Cancel(order.OrderId);
                 resp.ContinueWith((Task<REST.CancelOrderResponse> t) =>
                 {
@@ -172,6 +185,7 @@ namespace ExchangeApi.Coinbase
                         _cfg.Scheduler.Schedule(() => _orderManager.Invalidate(order.OrderId));
                 });
             });
+            return task;
         }
 
         void OnMessage(TimestampedMsg<WebSocket.IMessageIn> msg)
