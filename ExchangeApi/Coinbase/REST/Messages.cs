@@ -169,6 +169,11 @@ namespace ExchangeApi.Coinbase.REST
 
         public void Parse(HttpStatusCode httpStatus, string s)
         {
+            if (httpStatus == HttpStatusCode.BadRequest)
+            {
+                Result = NewOrderResult.Reject;
+                return;
+            }
             httpStatus.EnsureSuccess();
             JObject root = Json.ParseObject(s);
             OrderId = (string)root["id"];
